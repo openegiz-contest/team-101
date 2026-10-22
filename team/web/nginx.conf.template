@@ -1,0 +1,27 @@
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+  include /etc/nginx/mime.types;
+  add_header Cache-Control "no-cache" always;
+
+  location = /nginx.conf.template { return 404; }
+
+  # read the twins of the complex: /api/2/things?ids=kz.limit:...
+  location = /api/2/things {
+    limit_except GET { deny all; }
+    if ($arg_ids !~ "^(kz\.limit(:|%3A)[a-z0-9-]+(,|%2C)?)+$") { return 403; }
+    proxy_set_header Authorization "Basic ${DITTO_BASIC_AUTH}";
+    proxy_pass http://ditto-nginx:80;
+  }
+
+  # switch a scenario or the planning mode on the control twin
+  location ~ "^/api/2/things/kz\.limit:control/features/[a-z0-9_]+/properties/(active|value)$" {
+    limit_except GET PUT { deny all; }
+    proxy_set_header Authorization "Basic ${DITTO_BASIC_AUTH}";
+    proxy_pass http://ditto-nginx:80;
+  }
+
+  location /api/ { return 403; }
+}

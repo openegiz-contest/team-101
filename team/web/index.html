@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Рудник под лимитом</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{"imports": {"three": "./vendor/three.module.min.js"}}</script>
+</head>
+<body>
+  <div id="scene"></div>
+
+  <header id="top">
+    <div class="brand">
+      <b>Рудник под лимитом</b>
+      <span>Медный ГОК «Сары-Тау» · цифровой двойник на OpenEgiz</span>
+    </div>
+    <div class="clock"><span id="clock">--:--</span><small id="day">сутки –</small></div>
+    <div class="mode" role="group" aria-label="Режим планирования">
+      <button data-mode="optimizer">План оптимизатора</button>
+      <button data-mode="departments">Каждый отдел сам</button>
+    </div>
+    <button id="toggle-panels" class="ghost" title="Клавиша H">Скрыть панели</button>
+    <div id="conn" class="conn">нет связи с Ditto</div>
+  </header>
+
+  <aside id="left" class="panel">
+    <section class="kpis">
+      <div class="kpi"><small>Медь сейчас</small><b id="k-cu">–</b><span>т/ч</span></div>
+      <div class="kpi"><small>Медь за сутки</small><b id="k-cuday">–</b><span>т</span></div>
+      <div class="kpi"><small>Руда на фабрику</small><b id="k-ore">–</b><span>т/ч</span></div>
+    </section>
+
+    <h2>Ресурсы и ограничения</h2>
+    <div class="bars">
+      <div class="bar" id="b-power"><label>Мощность подстанции</label><i><u></u></i><output></output></div>
+      <div class="bar" id="b-fresh"><label>Свежая вода (водозабор)</label><i><u></u></i><output></output></div>
+      <div class="bar" id="b-mills"><label>Мельницы, загрузка по мощности</label><i><u></u></i><output></output></div>
+      <div class="bar" id="b-tank"><label>Резервуар оборотной воды</label><i><u></u></i><output></output></div>
+      <div class="bar" id="b-stock"><label>Склад руды</label><i><u></u></i><output></output></div>
+    </div>
+    <p class="note" id="pond-note"></p>
+
+    <h2>Сценарии «что если»</h2>
+    <div id="scenarios"></div>
+    <p class="note">Сценарий включается и отменяется здесь же: кнопка пишет в двойник <code>kz.limit:control</code> в Ditto.</p>
+  </aside>
+
+  <aside id="right" class="panel">
+    <h2>Рекомендация диспетчеру</h2>
+    <div id="bottleneck" class="bottleneck">–</div>
+    <div class="compare">
+      <div><small>План оптимизатора</small><b id="c-plan">–</b><span>т меди / 24 ч</span></div>
+      <div><small>Пропорционально по отделам</small><b id="c-base">–</b><span>т меди / 24 ч</span></div>
+      <div><small>Без ограничений</small><b id="c-ref">–</b><span>т меди / 24 ч</span></div>
+    </div>
+    <ul id="advice"></ul>
+    <h2>План на 24 часа</h2>
+    <canvas id="chart-ore" width="680" height="220" aria-label="Питание фабрики по часам"></canvas>
+    <canvas id="chart-power" width="680" height="220" aria-label="Мощность по часам"></canvas>
+    <p class="note"><a id="grafana" target="_blank" rel="noopener">История в Grafana →</a></p>
+  </aside>
+
+  <footer id="events"></footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

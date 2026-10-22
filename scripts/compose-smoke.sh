@@ -9,7 +9,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE=(docker compose -f "$ROOT/deploy/compose/docker-compose.yml")
+COMPOSE=(docker compose -f "$ROOT/deploy/compose/docker-compose.yml" -f "$ROOT/team/compose.yml")
 # shellcheck disable=SC1091
 set -a; . "$ROOT/deploy/compose/.env"; set +a
 
@@ -136,7 +136,7 @@ check "extended API answers" sh -c "curl -s -o /dev/null -w '%{http_code}' http:
 check "Unity file server serves build/" curl -sf -o /dev/null "http://$HOST:$UNITY_PORT/build/README.md"
 
 if "${COMPOSE[@]}" ps -a --format '{{.Service}}' 2>/dev/null | grep -qx mine-setup || \
-   docker ps -a --format '{{.Names}}' | grep -q '^openegiz-mine-simulator-'; then
+   docker ps -a --format '{{.Names}}' | grep -q '^team101-mine-simulator-'; then
   echo "Example Mine"
   for twin in mine-01 excavator-01 truck-01 truck-02 crusher-01; do
     check_ditto "twin org.openegiz.mine:$twin exists" curl -sf -u "ditto:$DITTO_PASSWORD" "$DITTO/api/2/things/org.openegiz.mine:$twin"
@@ -153,6 +153,23 @@ if "${COMPOSE[@]}" ps -a --format '{{.Service}}' 2>/dev/null | grep -qx mine-set
   check_ditto "Twins UI lists the Example Mine twins" sh -c "curl -sf -u admin:$GRAFANA_ADMIN_PASSWORD '$PROXY/ditto/api/2/search/things?filter=ne(attributes/_isType,true)&fields=thingId&option=size(200)' | grep -q 'org.openegiz.mine:truck-01'"
   check "dashboard provisioned" curl -sf -u "admin:$GRAFANA_ADMIN_PASSWORD" "$GRAFANA/api/dashboards/uid/openegiz-example-mine"
 fi
+
+echo "Рудник под лимитом (team/)"
+for twin in complex control planner face-3 mill-1 mill-2 process-water water-intake tailings substation; do
+  check_ditto "twin kz.limit:$twin exists" curl -sf -u "ditto:$DITTO_PASSWORD" "$DITTO/api/2/things/kz.limit:$twin"
+done
+check_ditto "planner published an optimal plan" sh -c "curl -sf -u 'ditto:$DITTO_PASSWORD' '$DITTO/api/2/things/kz.limit:planner/features/status/properties/value' | grep -q optimal"
+ok=0
+limit_flux='from(bucket:"default") |> range(start:-2m) |> filter(fn:(r) => r.thingId == "kz.limit:substation" and r._field == "value_load_properties_value") |> count()'
+for _ in $(seq 1 30); do
+  if "${COMPOSE[@]}" exec -T influxdb influx query --org opentwins --token "$INFLUXDB_TOKEN" --raw "$limit_flux" 2>/dev/null \
+      | grep -qE ',[1-9][0-9]*,value_load_properties_value,'; then ok=1; break; fi
+  sleep 2
+done
+if [ $ok = 1 ]; then pass "simulator telemetry reaches InfluxDB"; else fail "no kz.limit telemetry in InfluxDB for the last 2 minutes"; fi
+check "3D page served" curl -sf -o /dev/null "http://$HOST:${LIMIT_WEB_PORT:-8100}/"
+check "3D page reads the twins through its proxy" sh -c "curl -sf 'http://$HOST:${LIMIT_WEB_PORT:-8100}/api/2/things?ids=kz.limit:complex' | grep -q sim_clock"
+check "dashboard provisioned" curl -sf -u "admin:$GRAFANA_ADMIN_PASSWORD" "$GRAFANA/api/dashboards/uid/rudnik-pod-limitom"
 
 echo
 if [ $FAILED = 0 ]; then echo "Smoke test passed."; else echo "Smoke test FAILED."; exit 1; fi

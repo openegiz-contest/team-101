@@ -3,7 +3,8 @@
 # ---------------------------------------------------------------------------
 # Docker Compose deployment (laptops, CI, contest judges): deploy/compose/
 # ---------------------------------------------------------------------------
-COMPOSE_BASE := docker compose -f deploy/compose/docker-compose.yml
+# The Team's complex («Рудник под лимитом», team/) is part of every compose command.
+COMPOSE_BASE := docker compose -f deploy/compose/docker-compose.yml -f team/compose.yml
 # Once `make example-mine` has run, every compose command also loads the mine
 # overlay, so `down` stops its simulator and `up` keeps its Grafana dashboard.
 # `make clean` forgets it.

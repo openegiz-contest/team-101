@@ -7,7 +7,7 @@
 # Start it with `make up` from the repository root: that generates .env with
 # random credentials on first run, then calls `docker compose up`.
 
-name: openegiz
+name: team101
 
 x-ditto-service: &ditto-service
   restart: unless-stopped

@@ -1,0 +1,68 @@
+# «Рудник под лимитом»: an overlay on deploy/compose/docker-compose.yml.
+# `make up` always includes it (see COMPOSE in the Makefile).
+
+services:
+  limit-setup:
+    build: ../../team/engine
+    image: team101/limit-engine:local
+    restart: "no"
+    command: ["python", "setup_twins.py"]
+    environment:
+      DITTO_URL: http://ditto-nginx:80
+      DITTO_PASSWORD: ${DITTO_PASSWORD}
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  # Same image as limit-setup, which builds it (see examples/mine/compose.yml
+  # for why only one service may carry `build:`).
+  limit-simulator:
+    image: team101/limit-engine:local
+    pull_policy: never
+    restart: unless-stopped
+    mem_limit: 192m
+    command: ["python", "simulator.py"]
+    environment: &engine-env
+      DITTO_URL: http://ditto-nginx:80
+      DITTO_PASSWORD: ${DITTO_PASSWORD}
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      SIM_SPEEDUP: ${SIM_SPEEDUP:-60}
+      SIM_START_HOUR: ${SIM_START_HOUR:-16.5}
+    depends_on:
+      limit-setup:
+        condition: service_completed_successfully
+
+  limit-planner:
+    image: team101/limit-engine:local
+    pull_policy: never
+    restart: unless-stopped
+    mem_limit: 256m
+    command: ["python", "planner.py"]
+    environment: *engine-env
+    depends_on:
+      limit-setup:
+        condition: service_completed_successfully
+
+  # The 3D view of the complex. Its nginx adds the Ditto credentials on the
+  # server side and lets the browser do only two things: read the twins of
+  # the complex and switch the what-if scenarios on the control twin.
+  limit-web:
+    image: docker.io/library/nginx:1.25-alpine
+    restart: unless-stopped
+    mem_limit: 64m
+    environment:
+      DITTO_BASIC_AUTH: ${DITTO_BASIC_AUTH}
+    ports:
+      - "${OPENEGIZ_BIND:-127.0.0.1}:${LIMIT_WEB_PORT:-8100}:80"
+    volumes:
+      - ../../team/web/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ../../team/web:/usr/share/nginx/html:ro
+    depends_on:
+      ditto-nginx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/index.html || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6

@@ -1,43 +1,71 @@
-# <Team name>: a digital mine on OpenEgiz
+# Рудник под лимитом: цифровой двойник медного ГОК на OpenEgiz
 
-> Team Repository of the contest “Digital Mine on OpenEgiz”. **Replace the contents of this file with the instructions for your Submission.** The AI Jury runs the Submission strictly by these instructions, from scratch, in the Judge Environment. Accepted languages: English, Kazakh, Russian.
+Двойник медно-порфирового комплекса полного цикла (карьер → дробилка → склад → фабрика → хвостохранилище, водозабор, подстанция), который помогает диспетчеру перестроить суточный план, когда урезают воду или электроэнергию. Замысел и описание решения — в [SUBMISSION.md](SUBMISSION.md), презентация — [presentation.pdf](presentation.pdf).
 
-> **Start with the Concept**, the first section of [SUBMISSION.md](SUBMISSION.md): the Team writes it before any code. What AI agents build from this Template without a Concept is the Default Solution, published on the [contest site](https://openegiz-contest.github.io/) as the low bar: a Submission that does not go beyond it gets low levels in the Rubric. AI agents read [AGENTS.md](AGENTS.md).
+## Запуск
 
-## Running
-
-Requirements (Docker, `make`, Windows/WSL2 setup) are in [OPENEGIZ.md](OPENEGIZ.md) / [OPENEGIZ.ru.md](OPENEGIZ.ru.md).
+Требования: Linux (или Windows + WSL2, или macOS), Docker с Compose v2.20+, `git`, `make`, 6 ГБ памяти для Docker, доступ в интернет при первом запуске (образы и пакеты Python). Подробно о платформе — [OPENEGIZ.ru.md](OPENEGIZ.ru.md).
 
 ```bash
-sudo apt install -y make   # if make is missing (clean Ubuntu)
-make up            # the OpenEgiz platform
-make example-mine  # the Example Mine: twins, simulator, dashboard
+sudo apt install -y make   # только если make не установлен (чистая Ubuntu)
+make up
 ```
 
-Replace these commands with the commands of your Submission. The Submission must start by following these instructions without manual intervention (Rules, clause 6.4); downloading datasets and models and building are also listed here.
+`make up` поднимает платформу OpenEgiz **и** наш комплекс (оверлей [team/compose.yml](team/compose.yml) входит в каждую команду `make`). Первый запуск генерирует пароли, скачивает около 2,5 ГБ образов и собирает образ движка (Python + SciPy) — 5–10 минут. В конце команда печатает адреса и логины.
 
-## What to open
+Проверка, что всё работает от начала до конца (платформа и наш комплекс):
 
-- Grafana: the address and login are printed by `make up`.
-- <where to see the mine visualization, which dashboards>
+```bash
+make smoke
+```
 
-## Repository contents
+Ручных шагов нет: двойники создаются в Ditto автоматически, симулятор и оптимизатор стартуют сами. Остановить — `make down`, удалить все данные — `make clean`.
 
-| Path | Contents |
+## Что открыть
+
+| Адрес | Что там |
 |---|---|
-| `team/` | Directory for the Team's code. Using it is optional: any part may be changed, including the platform core |
-| `SUBMISSION.md` | Description of the Submission: **required** |
-| `presentation.pdf` | Presentation: **required**, in the repository root |
-| `AGENTS.md`, `CLAUDE.md` | Instructions for your AI agents (Codex, Claude Code and others read them automatically) |
-| `examples/mine/` | The Example Mine: shows how a digital mine is built on OpenEgiz. It is not a basis for the Submission |
-| `OPENEGIZ.md`, `OPENEGIZ.ru.md` | Documentation of the OpenEgiz platform v1.0.4 |
+| **http://localhost:8100** | **3D-вид комплекса**: карьер с тремя забоями и самосвалами, дробилка, конвейеры, склад по сортам, фабрика (2 линии измельчения, флотация, сгуститель), резервуар оборотной воды, хвостохранилище с прудом, водозабор с канала, подстанция и ЛЭП. Потоки руды, воды и мощности анимированы и пропорциональны величинам из двойников. Слева — ресурсы и **сценарии «что если»**, справа — **рекомендация оптимизатора** и план на 24 часа. Клавиша `H` скрывает панели. |
+| http://localhost:3000 | Grafana (логин `admin`, пароль печатает `make up`, он же в `deploy/compose/.env`). **Dashboards → OpenEgiz → Рудник под лимитом** — история двойников. Приложение **OpenEgiz → Twins** — все двойники `kz.limit:*` с иерархией. |
 
-The Submission is the `main` branch at the moment of the Freeze; other branches are not evaluated.
+Время модели идёт в 60 раз быстрее реального: 1 минута на экране = 1 час на руднике. Модель стартует в 16:30, так что вечерний пик энергосистемы (18:00–22:00) наступает через 1,5 минуты после запуска.
 
-## License
+## Сценарии «что если»
 
-The Submission is distributed under the MIT license, see [LICENSE](LICENSE). Copyright belongs to the Team: add the line `Copyright (c) 2026 <Team members>` to `LICENSE`.
+Включаются и **отменяются той же кнопкой** на http://localhost:8100 (левая панель). Кнопка пишет в двойник `kz.limit:control` в Ditto; симулятор и оптимизатор читают его оттуда. То же можно сделать без интерфейса:
+
+```bash
+# включить маловодный год (false — отменить); остальные: grid_peak, mill2_repair, hard_ore
+curl -X PUT -H 'Content-Type: application/json' -d true \
+  http://localhost:8100/api/2/things/kz.limit:control/features/dry_year/properties/active
+# режим: "optimizer" — комплекс работает по плану оптимизатора, "departments" — каждый отдел сам
+curl -X PUT -H 'Content-Type: application/json' -d '"departments"' \
+  http://localhost:8100/api/2/things/kz.limit:control/features/mode/properties/value
+```
+
+| Сценарий | Что меняется | Где видно |
+|---|---|---|
+| `dry_year` — маловодный год | лимит водозабора 1 750 → 1 225 м³/ч | водовод и водозабор подсвечены, оптимизатор включает высокоплотное сгущение хвостов; в режиме «каждый отдел сам» резервуар оборотной воды пустеет и срабатывает блокировка фабрики |
+| `grid_peak` — вечерний пик | лимит подстанции 78 → 58 МВт с 18:00 до 22:00 | оптимизатор снижает питание мельниц в пик и копит руду на складе; без него САОН отключает линию измельчения на 40 минут |
+| `mill2_repair` — ремонт мельницы №2 | одна линия измельчения из двух | линия 2 серая, склад заполняется, план пересчитан на одну линию |
+| `hard_ore` — твёрдая руда в забое №3 | Wi 15,5 → 19,5 кВт·ч/т | забой 3 фиолетовый, растёт удельная энергия, оптимизатор меняет шихту |
+
+## Состав репозитория
+
+| Путь | Содержимое |
+|---|---|
+| [team/HOW-IT-WORKS.md](team/HOW-IT-WORKS.md) | Как всё устроено: сервисы, поток данных, физика, оптимизатор, интерфейс |
+| [team/engine/](team/engine/) | Движок комплекса: [params.py](team/engine/params.py) (все параметры), [setup_twins.py](team/engine/setup_twins.py) (двойники), [simulator.py](team/engine/simulator.py) (физика, MQTT → Ditto), [lp.py](team/engine/lp.py) + [planner.py](team/engine/planner.py) (модуль-оптимизатор) |
+| [team/web/](team/web/) | 3D-вид (Three.js r160, вендорен в `team/web/vendor/`, MIT) и nginx-прокси к Ditto |
+| [team/compose.yml](team/compose.yml) | Сервисы комплекса поверх платформы |
+| `deploy/compose/grafana/dashboards/Рудник под лимитом/` | Дашборд Grafana |
+| `SUBMISSION.md`, `presentation.pdf` | Описание решения и презентация |
+| `examples/`, остальное | Платформа OpenEgiz v1.0.4 и её примеры (не часть решения) |
+
+## Лицензия
+
+MIT, см. [LICENSE](LICENSE). Three.js — MIT ([team/web/vendor/LICENSE](team/web/vendor/LICENSE)).
 
 ---
 
-Platform: [aleka07/openegiz](https://github.com/aleka07/openegiz). If the platform was useful to you, support the project with a star on GitHub.
+Platform: [aleka07/openegiz](https://github.com/aleka07/openegiz).
