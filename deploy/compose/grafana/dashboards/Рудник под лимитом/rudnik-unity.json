@@ -1,0 +1,149 @@
+{
+ "uid": "rudnik-unity",
+ "title": "Рудник под лимитом — Unity 3D",
+ "tags": [
+  "team-101",
+  "unity",
+  "3d"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 1,
+ "refresh": "5s",
+ "time": {
+  "from": "now-5m",
+  "to": "now"
+ },
+ "description": "Сцена комплекса в Unity WebGL (панель Unity платформы OpenEgiz): объекты названы по двойникам kz.limit:* и получают их значения из InfluxDB. Клик по объекту выбирает двойник.",
+ "templating": {
+  "list": [
+   {
+    "name": "twin",
+    "label": "Двойник",
+    "type": "textbox",
+    "query": "kz.limit:mill-1",
+    "current": {
+     "text": "kz.limit:mill-1",
+     "value": "kz.limit:mill-1"
+    },
+    "hide": 0
+   }
+  ]
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "text",
+   "title": "",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 3
+   },
+   "options": {
+    "mode": "markdown",
+    "content": "### «Рудник под лимитом» в Unity-панели Grafana\nОбъекты сцены названы по двойникам (`kz.limit:mill-1` и т. д.): панель отправляет каждому его последние значения из InfluxDB вызовом `SetValues` при каждом обновлении дашборда. **Кликните объект** — справа появятся все значения его двойника. Мышь: левая кнопка — вращать, правая — сдвигать, колесо — масштаб. Сценарии «что если» и рекомендация оптимизатора — на [3D-странице](http://localhost:8100)."
+   }
+  },
+  {
+   "id": 2,
+   "type": "ertis-unity-panel",
+   "title": "Комплекс в Unity",
+   "gridPos": {
+    "x": 0,
+    "y": 3,
+    "w": 17,
+    "h": 22
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "opentwins-influxdb"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "opentwins-influxdb"
+     },
+     "query": "import \"types\"\nfrom(bucket: \"default\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"mqtt_consumer\" and r.thingId =~ /^kz\\.limit:/ and r._field =~ /_properties_value$/)\n  |> filter(fn: (r) => types.isNumeric(v: r._value))\n  |> group(columns: [\"thingId\", \"_field\"])\n  |> last()\n  |> group(columns: [\"thingId\"])\n  |> pivot(rowKey: [\"thingId\"], columnKey: [\"_field\"], valueColumn: \"_value\")"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "opentwins-influxdb"
+     },
+     "query": "import \"types\"\nfrom(bucket: \"default\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"mqtt_consumer\" and r.thingId =~ /^kz\\.limit:/ and r._field =~ /_properties_value$/ and r._field !~ /^value_(events|advice|schedule|setpoint)_/)\n  |> filter(fn: (r) => types.isType(v: r._value, type: \"string\") or types.isType(v: r._value, type: \"bool\"))\n  |> group(columns: [\"thingId\", \"_field\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: string(v: r._value)}))\n  |> group(columns: [\"thingId\"])\n  |> pivot(rowKey: [\"thingId\"], columnKey: [\"_field\"], valueColumn: \"_value\")"
+    }
+   ],
+   "options": {
+    "unityModel": {
+     "setFilesMode": "External links",
+     "unityFiles": {
+      "loaderUrl": "http://localhost:8090/build/MineUnderLimits.loader.js",
+      "dataUrl": "http://localhost:8090/build/MineUnderLimits.data",
+      "frameworkUrl": "http://localhost:8090/build/MineUnderLimits.framework.js",
+      "codeUrl": "http://localhost:8090/build/MineUnderLimits.wasm"
+     }
+    },
+    "sendData": {
+     "mode": "Send data to GameObjects by ID column",
+     "unityFunc": "SetValues",
+     "grafanaQuery": "",
+     "config": {
+      "idColumn": "thingId"
+     },
+     "filter": {
+      "dashboardVars": [],
+      "columns": []
+     }
+    },
+    "receiveData": [
+     {
+      "nameEvent": "SelectTwin",
+      "type": "Text",
+      "mode": "Store value in Grafana variable",
+      "config": {
+       "varId": "twin"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 3,
+   "type": "table",
+   "title": "Двойник: ${twin}",
+   "gridPos": {
+    "x": 17,
+    "y": 3,
+    "w": 7,
+    "h": 22
+   },
+   "datasource": {
+    "type": "influxdb",
+    "uid": "opentwins-influxdb"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "influxdb",
+      "uid": "opentwins-influxdb"
+     },
+     "query": "import \"strings\"\nfrom(bucket: \"default\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"mqtt_consumer\" and r.thingId == \"${twin}\" and r._field =~ /_properties_value$/)\n  |> group(columns: [\"_field\"])\n  |> last()\n  |> map(fn: (r) => ({\"признак\": strings.trimSuffix(v: strings.trimPrefix(v: r._field, prefix: \"value_\"), suffix: \"_properties_value\"), \"значение\": string(v: r._value)}))\n  |> group()\n  |> sort(columns: [\"признак\"])"
+    }
+   ],
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm"
+   },
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  }
+ ]
+}

@@ -170,6 +170,11 @@ if [ $ok = 1 ]; then pass "simulator telemetry reaches InfluxDB"; else fail "no 
 check "3D page served" curl -sf -o /dev/null "http://$HOST:${LIMIT_WEB_PORT:-8100}/"
 check "3D page reads the twins through its proxy" sh -c "curl -sf 'http://$HOST:${LIMIT_WEB_PORT:-8100}/api/2/things?ids=kz.limit:complex' | grep -q sim_clock"
 check "dashboard provisioned" curl -sf -u "admin:$GRAFANA_ADMIN_PASSWORD" "$GRAFANA/api/dashboards/uid/rudnik-pod-limitom"
+# The Unity scene is switched on and off with `make unity-on` / `make unity-off`.
+if [ -f "$ROOT/deploy/compose/grafana/dashboards/Рудник под лимитом/rudnik-unity.json" ]; then
+  check "Unity scene served (build/MineUnderLimits.*)" sh -c "for f in loader.js framework.js data wasm; do curl -sf -o /dev/null http://$HOST:$UNITY_PORT/build/MineUnderLimits.\$f || exit 1; done"
+  check "Unity dashboard provisioned" curl -sf -u "admin:$GRAFANA_ADMIN_PASSWORD" "$GRAFANA/api/dashboards/uid/rudnik-unity"
+fi
 
 echo
 if [ $FAILED = 0 ]; then echo "Smoke test passed."; else echo "Smoke test FAILED."; exit 1; fi

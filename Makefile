@@ -48,6 +48,38 @@ evaluate:
 	$(COMPOSE) build limit-setup
 	$(COMPOSE) run --rm --no-deps -T limit-setup python evaluate.py
 
+# ---------------------------------------------------------------------------
+# The Unity scene of the complex for the Grafana Unity panel (team/unity/)
+# ---------------------------------------------------------------------------
+# Building it needs Unity 6 with Web Build Support and an activated licence
+# (team/unity/README.md); the stand itself only serves the files in build/.
+UNITY ?= $(lastword $(sort $(wildcard $(HOME)/Unity/Hub/Editor/*/Editor/Unity)))
+UNITY_DASHBOARD := deploy/compose/grafana/dashboards/Рудник под лимитом/rudnik-unity.json
+.PHONY: unity-build unity-on unity-off
+
+## Build the Unity WebGL scene into build/MineUnderLimits.* (UNITY=/path/to/Unity to choose the editor)
+unity-build:
+	@test -x "$(UNITY)" || { echo "ERROR: Unity Editor not found. Install Unity 6 with Web Build Support in Unity Hub"; \
+	  echo "       (team/unity/README.md), or pass UNITY=/path/to/Editor/Unity"; exit 1; }
+	rm -rf team/unity/Assets/Models && mkdir -p team/unity/Assets/Models team/unity/Logs
+	cp -r team/web/models/industrial team/web/models/vehicles team/unity/Assets/Models/
+	"$(UNITY)" -batchmode -nographics -quit -projectPath team/unity -buildTarget WebGL \
+	  -executeMethod MineSceneBuilder.BuildWebGL -logFile team/unity/Logs/build.log \
+	  || { tail -60 team/unity/Logs/build.log; exit 1; }
+	@chmod 644 build/MineUnderLimits.*
+	@ls -l build/MineUnderLimits.*
+
+## Show the Unity scene in Grafana (dashboard «Рудник под лимитом — Unity 3D»)
+unity-on:
+	@test -f build/MineUnderLimits.wasm || { echo "ERROR: no Unity build in build/: run make unity-build first"; exit 1; }
+	cp team/unity/grafana/rudnik-unity.json "$(UNITY_DASHBOARD)"
+	@echo "Unity scene on: Grafana -> Dashboards -> OpenEgiz -> Рудник под лимитом -> «Рудник под лимитом — Unity 3D» (within 10 s)"
+
+## Remove the Unity scene from Grafana
+unity-off:
+	rm -f "$(UNITY_DASHBOARD)"
+	@echo "Unity scene off (Grafana drops the dashboard within 10 s)"
+
 ## Run the Example Mine (twins + haul-cycle simulator + Grafana dashboard) on the compose stack
 example-mine: up
 	$(COMPOSE_BASE) -f $(MINE_COMPOSE) up -d --build --wait --wait-timeout 300

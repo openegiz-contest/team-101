@@ -1,0 +1,20 @@
+# Unity creates these; only Assets/, Packages/ and the builder are sources.
+/Library/
+/Temp/
+/Logs/
+/UserSettings/
+/Builds/
+/obj/
+/ProjectSettings/
+/Packages/packages-lock.json
+*.csproj
+*.sln
+# copied from team/web/models by `make unity-build`
+/Assets/Models/
+/Assets/Models.meta
+/Assets/Scenes/
+/Assets/Scenes.meta
+/Assets/Generated/
+/Assets/Generated.meta
+# Unity regenerates the .meta files; the scene is generated, so their GUIDs need not be stable.
+*.meta
