@@ -265,6 +265,8 @@ def s_viz():
           "Bottlenecks found by the optimizer get an amber frame; a line under repair is grey, a tripped one red"),
         t("Конусы склада по сортам, уровень резервуара, площадь пруда, время суток — из Ditto каждые 2 секунды",
           "Stockpile cones per ore type, tank level, pond area, time of day — from Ditto every 2 seconds"),
+        t("Самосвалы (груженые вверх, порожние вниз, лишние — у мастерской), склад концентрата, инфраструктура — готовые модели Kenney (CC0)",
+          "Haul trucks (loaded up, empty down, spare ones at the workshop), concentrate shed, site buildings — ready-made Kenney models (CC0)"),
     ]
     return slide(head(t("Визуализация", "Visualization"), t(
         "3D-вид комплекса: http://localhost:8100", "3D view of the complex: http://localhost:8100")) +
@@ -330,9 +332,9 @@ def s_compare():
         "Dry year + peak: plan vs «each department for itself»")) +
         f"""<div class="pair">
           <figure><img src="img/peak-optimizer.jpg" alt=""><figcaption>{t("План оптимизатора: питание снижено заранее, отключений нет", "Optimizer plan: feed cut in advance, no trips")}</figcaption>
-            {stats([("8,41" if LANG == "ru" else "8.41", t("т Cu/ч в 19:15", "t Cu/h at 19:15")), ("56,9" if LANG == "ru" else "56.9", t("МВт при лимите 58", "MW, limit 58")), ("0", t("отключений САОН", "load-shedding trips")), ("237", t("т Cu за сутки", "t Cu per day"))], "plan")}</figure>
+            {stats([("8,33" if LANG == "ru" else "8.33", t("т Cu/ч в 19:30", "t Cu/h at 19:30")), ("56,9" if LANG == "ru" else "56.9", t("МВт при лимите 58", "MW, limit 58")), ("0", t("отключений САОН", "load-shedding trips")), ("237", t("т Cu за сутки", "t Cu per day"))], "plan")}</figure>
           <figure><img src="img/peak-departments.jpg" alt=""><figcaption>{t("Каждый отдел сам: САОН отключила линию измельчения №1", "Each department: load shedding tripped grinding line 1")}</figcaption>
-            {stats([("5,02" if LANG == "ru" else "5.02", t("т Cu/ч в 19:49", "t Cu/h at 19:49")), ("1 " + t("из", "of") + " 2", t("линий в работе", "lines running")), ("6", t("отключений за сутки", "trips per day")), ("201", t("т Cu за сутки", "t Cu per day"))], "dept")}</figure>
+            {stats([("5,01" if LANG == "ru" else "5.01", t("т Cu/ч в 19:54", "t Cu/h at 19:54")), ("1 " + t("из", "of") + " 2", t("линий в работе", "lines running")), ("6", t("отключений за сутки", "trips per day")), ("201", t("т Cu за сутки", "t Cu per day"))], "dept")}</figure>
         </div>""")
 
 
