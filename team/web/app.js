@@ -644,6 +644,8 @@ function togglePanels() {
   $('#toggle-panels').textContent = document.body.classList.contains('bare') ? 'Показать панели' : 'Скрыть панели';
 }
 $('#toggle-panels').addEventListener('click', togglePanels);
+// ?embed: the page sits in a Grafana panel, so start with the scene only
+if (new URLSearchParams(location.search).has('embed')) togglePanels();
 window.addEventListener('keydown', (e) => { if (e.key === 'h' || e.key === 'р') togglePanels(); });
 $('#grafana').href = `${location.protocol}//${location.hostname}:3000/d/rudnik-pod-limitom/`;
 
