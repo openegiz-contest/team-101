@@ -40,6 +40,14 @@ logs:
 smoke:
 	@bash scripts/compose-smoke.sh
 
+## Recompute the «Result on the model» table of SUBMISSION.md offline: the same
+## simulator and planner, one model day per case, about 10 s
+.PHONY: evaluate
+evaluate:
+	@bash scripts/compose-env.sh
+	$(COMPOSE) build limit-setup
+	$(COMPOSE) run --rm --no-deps -T limit-setup python evaluate.py
+
 ## Run the Example Mine (twins + haul-cycle simulator + Grafana dashboard) on the compose stack
 example-mine: up
 	$(COMPOSE_BASE) -f $(MINE_COMPOSE) up -d --build --wait --wait-timeout 300

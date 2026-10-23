@@ -22,9 +22,12 @@
 
 <!-- GitHub usernames of the Participants. Other personal data are not required: the repository becomes public after the Freeze (Rules, section 15). -->
 
-| GitHub |
-|---|
-|  |
+| GitHub | Зона ответственности |
+|---|---|
+| [khusrav11](https://github.com/khusrav11) | Модель комплекса: симулятор и двойники (`team/engine/simulator.py`, `setup_twins.py`, `params.py`) |
+| [BlackIc32007](https://github.com/BlackIc32007) | Модуль-оптимизатор суточного плана (`team/engine/lp.py`, `planner.py`) |
+| [bekbolatnurmas-coder](https://github.com/bekbolatnurmas-coder) | 3D-визуализация комплекса (`team/web/`) |
+| [Dauka-dr](https://github.com/Dauka-dr) | Интеграция с платформой, дашборд Grafana, документация, презентация, проверка запуска с нуля |
 
 ## Mine
 
@@ -68,14 +71,14 @@
 
 Сценарии комбинируются (например, маловодный год + пик).
 
-**Результат на модели** (сутки модельного времени с 16:30, тот же симулятор, режим «План оптимизатора» против «Каждый отдел сам»):
+**Результат на модели** (сутки модельного времени с 16:30, тот же симулятор, режим «План оптимизатора» против «Каждый отдел сам»). Таблицу можно пересчитать за ~10 секунд: `make evaluate` прогоняет тот же симулятор и тот же оптимизатор без платформы, по суткам на каждую строку ([team/engine/evaluate.py](team/engine/evaluate.py)):
 
 | Условия | План оптимизатора | Каждый отдел сам |
 |---|---|---|
 | Без ограничений | 244 т Cu | 241 т Cu |
 | Маловодный год | 244 т Cu | 212 т Cu, блокировка по воде 18 ч |
 | Вечерний пик | 237 т Cu, 0 отключений | 221 т Cu, 6 отключений САОН |
-| Маловодный год + пик | 237 т Cu | 201 т Cu |
+| Маловодный год + пик | 237 т Cu | 201 т Cu, 6 отключений САОН, блокировка по воде 13 ч |
 | Мельница №2 на ремонте | 122 т Cu | 120 т Cu |
 | Твёрдая руда в забое №3 | 226 т Cu | 224 т Cu |
 
@@ -143,7 +146,7 @@
 
 ## Presentation
 
-`presentation.pdf` in the repository root. Video (optional): нет.
+`presentation.pdf` in the repository root (на русском); английская версия — `presentation.en.pdf`. Исходники слайдов — [team/presentation/](team/presentation/). Video (optional): нет.
 
 ---
 
