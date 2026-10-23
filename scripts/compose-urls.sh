@@ -11,6 +11,7 @@ OpenEgiz is up.
 
   «Рудник под лимитом» (3D)   http://$H:${LIMIT_WEB_PORT:-8100}
   Grafana dashboard           Dashboards -> OpenEgiz -> Рудник под лимитом
+  Unity scene in Grafana      Dashboards -> OpenEgiz -> Рудник под лимитом — Unity 3D   (make unity-off / unity-on)
 
   Grafana        http://$H:$GRAFANA_PORT        admin / $GRAFANA_ADMIN_PASSWORD
   Ditto API      http://$H:$DITTO_PORT/api/2    ditto / $DITTO_PASSWORD   (devops / $DITTO_DEVOPS_PASSWORD)
