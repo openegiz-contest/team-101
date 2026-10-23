@@ -45,7 +45,7 @@ RESULTS = [
 TEAM = [
     ("khusrav11", ("Модель комплекса: симулятор и двойники", "Complex model: simulator and twins")),
     ("BlackIc32007", ("Модуль-оптимизатор суточного плана", "Daily plan optimizer module")),
-    ("bekbolatnurmas-coder", ("3D-визуализация комплекса", "3D visualization of the complex")),
+    ("bekbolatnurmas-coder", ("3D-визуализация: Three.js и Unity-панель Grafana", "3D visualization: Three.js and the Grafana Unity panel")),
     ("Dauka-dr", ("Интеграция, Grafana, документация, презентация", "Integration, Grafana, docs, presentation")),
 ]
 
@@ -215,7 +215,7 @@ def s_platform():
       {box(330, 44, 170, "Mosquitto", "MQTT telemetry/*")}
       {box(600, 44, 240, "Eclipse Ditto", t("23 двойника kz.limit:*", "23 twins kz.limit:*"), "core")}
       {box(920, 44, 230, "Telegraf → InfluxDB", t("история", "history"))}
-      {box(1200, 44, 200, "Grafana", t("дашборд + Twins", "dashboard + Twins"))}
+      {box(1200, 44, 200, "Grafana", t("дашборды, Unity, Twins", "dashboards, Unity, Twins"))}
       {box(50, 250, 360, "limit-planner", t("LP на 24 ч → план в двойник planner", "24 h LP → plan into the planner twin"), "team")}
       {box(600, 250, 240, "limit-web (3D)", t("читает двойники из Ditto", "reads twins from Ditto"), "team")}
       {box(900, 290, 300, t("Кнопки сценариев", "Scenario buttons"), t("PUT в двойник control", "PUT into the control twin"))}
@@ -271,6 +271,23 @@ def s_viz():
     return slide(head(t("Визуализация", "Visualization"), t(
         "3D-вид комплекса: http://localhost:8100", "3D view of the complex: http://localhost:8100")) +
         '<div class="shot-wrap"><img class="shot" src="img/clean-3d.jpg" alt=""><ul class="pts side">' +
+        "".join(f"<li>{esc(c)}</li>" for c in cap) + "</ul></div>")
+
+
+def s_unity():
+    cap = [
+        t("Grafana → «Рудник под лимитом — Unity 3D»: та же сцена в Unity-панели OpenEgiz, сборка Unity 6 WebGL",
+          "Grafana → «Рудник под лимитом — Unity 3D»: the same scene in the OpenEgiz Unity panel, a Unity 6 WebGL build"),
+        t("Объекты названы по двойникам; на каждом обновлении дашборда панель отправляет каждому его значения из InfluxDB",
+          "Objects are named after the twins; on every dashboard refresh the panel sends each one its values from InfluxDB"),
+        t("Клик по объекту — карточка двойника, событие SelectTwin пишет его в переменную дашборда, таблица рядом показывает все значения",
+          "Clicking an object shows its twin card; the SelectTwin event writes it into a dashboard variable, and the table next to it lists every value"),
+        t("Сцена строится кодом из той же раскладки и моделей Kenney; make unity-on / make unity-off включают и выключают дашборд",
+          "The scene is generated in code from the same layout and Kenney models; make unity-on / make unity-off switch the dashboard"),
+    ]
+    return slide(head(t("Визуализация в Grafana", "Visualization in Grafana"), t(
+        "Сцена комплекса в Unity-панели", "The complex in the Unity panel")) +
+        '<div class="shot-wrap"><img class="shot" src="img/grafana-unity.jpg" alt=""><ul class="pts side">' +
         "".join(f"<li>{esc(c)}</li>" for c in cap) + "</ul></div>")
 
 
@@ -388,7 +405,7 @@ def s_team():
 
 
 SLIDES = [s_title, s_problem, s_concept, s_complex, s_physics, s_platform, s_optimizer,
-          s_viz, s_dispatcher, s_scenarios, s_results, s_compare, s_data, s_limits, s_team]
+          s_viz, s_unity, s_dispatcher, s_scenarios, s_results, s_compare, s_data, s_limits, s_team]
 
 
 def render(lang):
