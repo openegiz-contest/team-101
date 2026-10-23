@@ -25,7 +25,9 @@ a { color: var(--water); }
 #top { position: fixed; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 18px;
   padding: 10px 16px; background: linear-gradient(var(--panel), rgba(13, 20, 25, 0)); z-index: 5; }
 .brand b { font-size: 17px; display: block; }
-.brand span { color: var(--muted); font-size: 12px; }
+/* the header gradient fades out over the light day sky: keep the text readable */
+.brand { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
+.brand span { color: #c5d3da; font-size: 12px; }
 .clock { margin-left: auto; text-align: right; }
 .clock span { font: 600 22px/1 ui-monospace, monospace; display: block; }
 .clock small { color: var(--muted); }

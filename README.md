@@ -70,7 +70,7 @@ curl -X PUT -H 'Content-Type: application/json' -d '"departments"' \
 
 ## Лицензия
 
-MIT, см. [LICENSE](LICENSE). Three.js — MIT ([team/web/vendor/LICENSE](team/web/vendor/LICENSE)).
+MIT, см. [LICENSE](LICENSE). Three.js — MIT ([team/web/vendor/LICENSE](team/web/vendor/LICENSE)). 3D-модели Kenney — CC0 ([team/web/models/](team/web/models/)).
 
 ---
 

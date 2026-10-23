@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from './vendor/CSS2DRenderer.js';
+import { GLTFLoader } from './vendor/GLTFLoader.js';
 
 const NS = 'kz.limit';
 const NAMES = ['complex', 'control', 'planner', 'pit', 'face-1', 'face-2', 'face-3', 'shovel-1', 'shovel-2', 'shovel-3',
@@ -204,13 +205,16 @@ function makeShovel(color) {
   mesh(new THREE.BoxGeometry(3, 2.6, 2.6), mat(color), 0, 4, -10, g);
   return { g, body };
 }
+// Box trucks first; useModels() swaps in the Kenney haul truck once it loads.
 function makeTruck() {
   const g = new THREE.Group();
-  mesh(new THREE.BoxGeometry(3.4, 1.6, 6), mat(0xe0b400), 0, 1.6, 0, g);
-  mesh(new THREE.BoxGeometry(3.2, 1.6, 1.6), mat(0x3d4449), 0, 2.4, 2.9, g);
-  const load = mesh(new THREE.BoxGeometry(2.8, 1.2, 4.2), mat(0x9b6a45), 0, 3, -0.6, g);
+  const body = new THREE.Group();
+  g.add(body);
+  mesh(new THREE.BoxGeometry(3.4, 1.6, 6), mat(0xe0b400), 0, 1.6, 0, body);
+  mesh(new THREE.BoxGeometry(3.2, 1.6, 1.6), mat(0x3d4449), 0, 2.4, 2.9, body);
+  const load = mesh(new THREE.BoxGeometry(2.8, 1.2, 4.2), mat(0x9b6a45), 0, 3, -0.6, body);
   scene.add(g);
-  return { g, load };
+  return { g, body, load, wheels: [] };
 }
 
 for (const f of FACES) {
@@ -268,7 +272,7 @@ const piles = STOCK.map((p, i) => {
   const m = mesh(new THREE.ConeGeometry(1.33, 1, 32), mat(ORE_COLORS[i], { flatShading: true }), p.x, 0.5, p.z);
   return m;
 });
-const stockChip = label(scene, 28, 30, -62, 'Склад руды (3 сорта)');
+const stockChip = label(scene, 6, 24, -72, 'Склад руды (3 сорта)');
 register('stockpile', piles.map((p) => p.material), stockChip);
 const conveyor1 = new Flow([[CRUSHER.x + 7, 12, CRUSHER.z], [2, 16, -42], [28, 20, -60]],
   { color: 0x9b6a45, box: true, size: 1.6, count: 70, tube: 0.9, tubeColor: 0x4a5257, speed: 0.08 });
@@ -377,7 +381,7 @@ const reclaimFlow = new Flow([[TSF.x - 6, 3, TSF.z - 26], [TSF.x + 4, 8, TSF.z -
 const INTAKE = new THREE.Vector3(204, 0, -30);
 const intakeMat = mat(0x8a969c);
 mesh(new THREE.BoxGeometry(14, 9, 12), intakeMat, INTAKE.x, 4.5, INTAKE.z);
-const intakeChip = label(scene, INTAKE.x, 18, INTAKE.z, 'Водозабор с канала');
+const intakeChip = label(scene, INTAKE.x - 30, 18, INTAKE.z - 4, 'Водозабор с канала');
 const freshFlow = new Flow([[INTAKE.x - 8, 2, INTAKE.z], [180, 2, -10], [150, 2, 40], [TANK.x + 8, 3, TANK.z]],
   { color: 0x6fd0ff, count: 70, tube: 1.0, tubeColor: 0x5d7f91, size: 1.4 });
 register('water-intake', [intakeMat, freshFlow.pipeMat], intakeChip);
@@ -416,6 +420,81 @@ powerLine('pit', [-60, -40]);
 powerLine('plant', [PLANT.x - 10, PLANT.z - 23]);
 powerLine('pumps', [INTAKE.x, INTAKE.z - 6]);
 powerLine('reclaim', [TSF.x - 64, TSF.z - 40]);
+
+// ------------------------------------------------- concentrate and site ----
+// Concentrate goes from flotation to its storage shed; the flow follows the
+// flotation twin. The shed, the workshop with idle haul trucks, the admin
+// block, boiler house, water tower, loader and dozer are Kenney CC0 models
+// (models/*/License.txt), loaded by useModels() below.
+const CONC = new THREE.Vector3(170, 0, -80);
+const concFlow = new Flow([[FLOT.x + 28, 4, FLOT.z - 2], [150, 6, -62], [CONC.x - 14, 5, CONC.z + 6]],
+  { color: 0x5f6b55, box: true, size: 1.4, count: 24, tube: 0.7, tubeColor: 0x4a5257, speed: 0.06 });
+const concChip = label(scene, CONC.x + 4, 26, CONC.z - 4, 'Склад медного концентрата');
+const WORKSHOP = new THREE.Vector3(-118, 0, -88);
+const PARK = Array.from({ length: 6 }, (_, i) => new THREE.Vector3(WORKSHOP.x - 30 + i * 10, 0, WORKSHOP.z + 26));
+const parked = [];
+
+const gltf = new GLTFLoader();
+// The Judge Environment renders without a GPU, so the models are kept cheap:
+// Lambert instead of the glTF PBR material (the same flat-coloured look for a
+// fraction of the per-pixel cost) and no shadow casting.
+const loadModel = (path) => gltf.loadAsync(`models/${path}.glb`).then((g) => {
+  g.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    o.material = new THREE.MeshLambertMaterial({ map: o.material.map, color: o.material.color });
+    o.receiveShadow = true;
+  });
+  return g.scene;
+});
+function place(model, scale, x, z, rotY = 0, y = 0) {
+  const m = model.clone();
+  m.scale.setScalar(scale);
+  m.position.set(x, y, z);
+  m.rotation.y = rotY;
+  scene.add(m);
+  return m;
+}
+function haulTruck(model) {
+  const m = model.clone();
+  m.scale.setScalar(2.2);
+  m.getObjectByName('arm').visible = false;           // the garbage-truck arms; a haul truck has none
+  return { m, load: m.getObjectByName('trash'), wheels: m.children.filter((c) => c.name.startsWith('wheel')) };
+}
+async function useModels() {
+  const [truck, loader, shed, hangar, admin, boiler, tower, container, tankL] = await Promise.all([
+    'vehicles/garbage-truck', 'vehicles/tractor-shovel', 'industrial/building-r', 'industrial/building-j',
+    'industrial/building-e', 'industrial/building-c', 'industrial/water-tower', 'industrial/shipping-container-a',
+    'industrial/detail-tank-large'].map(loadModel));
+  for (const { t } of trucks) {
+    const h = haulTruck(truck);
+    t.g.remove(t.body);
+    t.g.add(h.m);
+    Object.assign(t, { body: h.m, load: h.load, wheels: h.wheels });
+  }
+  for (const p of PARK) {
+    const h = haulTruck(truck);
+    h.load.visible = false;
+    h.m.position.copy(p);
+    h.m.rotation.y = Math.PI;
+    scene.add(h.m);
+    parked.push(h.m);
+  }
+  place(hangar, 24, WORKSHOP.x, WORKSHOP.z, Math.PI);
+  const stockLoader = place(loader, 3, -4, -66, Math.PI / 2 - 0.3);
+  stockLoader.userData.shovel = stockLoader.getObjectByName('shovel');
+  loaders.push(stockLoader);
+  loaders.push(place(loader, 3, TSF.x + 59, TSF.z + 4, 0.4, 6));      // dozer on the dam crest
+  place(shed, 15, CONC.x, CONC.z, -Math.PI / 2);
+  for (let i = 0; i < 6; i++) place(container, 9, CONC.x + 22 + (i % 3) * 5, CONC.z - 10 + Math.floor(i / 3) * 10, 0);
+  place(tankL, 9, FLOT.x + 6, FLOT.z - 22, 0);                       // reagent tanks of the flotation
+  place(tankL, 9, FLOT.x + 22, FLOT.z - 22, 0);
+  place(admin, 17, 46, -108, Math.PI);
+  place(boiler, 15, 86, -106, Math.PI);
+  place(tower, 14, 116, -102, 0);
+  if (T.complex) update3d();
+}
+const loaders = [];
+useModels().catch((e) => console.warn('3D models not loaded, keeping the simple shapes:', e));
 
 // --------------------------------------------------------------- update ----
 let lastSun = -1;
@@ -483,6 +562,12 @@ function update3d() {
   const cu = v('flotation', 'copper');
   froth.forEach((t) => { t.material.emissiveIntensity = 0.15 + 0.9 * clamp(cu / 12, 0, 1); });
   flotChip.text(`извлечение ${fmt(v('flotation', 'recovery'), 1)} % · ${fmt(cu, 2)} т Cu/ч`);
+  const conc = v('flotation', 'concentrate');
+  concFlow.set(conc / 50);
+  concChip.text(`${fmt(conc, 1)} т/ч · за сутки ${fmt(v('complex', 'copper_today') / 0.24)} т`);   // 24 % Cu
+  // haul trucks not needed on the faces wait at the workshop
+  const busy = FACES.reduce((s, f) => s + Math.min(f.trucks.length, Math.ceil((f.rate || 0) / 420)), 0);
+  parked.forEach((m, i) => { m.visible = i < trucks.length - busy; });
 
   const high = v('thickener', 'mode') === 'high-density';
   thickWater.material.color.set(high ? 0x9a8f72 : 0x6b7f7c);
@@ -727,7 +812,9 @@ function animate() {
     truck.g.position.copy(p);
     truck.g.lookAt(ahead.x, p.y, ahead.z);
     truck.load.visible = !back;
+    for (const w of truck.wheels) w.rotation.x += dt * 4;
   }
+  for (const l of loaders) if (l.userData.shovel) l.userData.shovel.rotation.x = -0.25 + 0.25 * Math.sin(t * 1.3);
   const pulse = 0.5 + 0.5 * Math.sin(t * 5);
   for (const name of bottleneckNow) {
     highlight[name]?.materials.forEach((m) => m.emissive?.setRGB(0.6 * pulse, 0.33 * pulse, 0.02 * pulse));
