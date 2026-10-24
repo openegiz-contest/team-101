@@ -73,7 +73,7 @@ unity-build:
 unity-on:
 	@test -f build/MineUnderLimits.wasm || { echo "ERROR: no Unity build in build/: run make unity-build first"; exit 1; }
 	cp team/unity/grafana/rudnik-unity.json "$(UNITY_DASHBOARD)"
-	@echo "Unity scene on: Grafana -> Dashboards -> OpenEgiz -> Рудник под лимитом -> «Рудник под лимитом — Unity 3D» (within 10 s)"
+	@echo "Unity scene on: Grafana -> Dashboards -> Рудник под лимитом -> «Рудник под лимитом — Unity 3D» (within 10 s)"
 
 ## Remove the Unity scene from Grafana
 unity-off:
