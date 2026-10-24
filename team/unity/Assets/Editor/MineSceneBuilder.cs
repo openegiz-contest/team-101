@@ -217,6 +217,7 @@ public static class MineSceneBuilder
             (n: "face-1", shovel: "shovel-1", angle: -Mathf.PI / 2 - 0.25f, bench: 4, color: 0xd59a4a, title: "Забой 1 · Северный"),
             (n: "face-2", shovel: "shovel-2", angle: 0.15f, bench: 3, color: 0xd8c08a, title: "Забой 2 · Восточный"),
             (n: "face-3", shovel: "shovel-3", angle: Mathf.PI / 2 + 0.2f, bench: 1, color: 0xc0583a, title: "Забой 3 · Южный, нижний") };
+        var dumpTruck = Model("poly/dump-truck");
         var truckModel = Model("vehicles/garbage-truck");
         foreach (var f in faces)
         {
@@ -263,11 +264,35 @@ public static class MineSceneBuilder
             var trucks = new List<Transform>(); var loads = new List<GameObject>();
             for (int i = 0; i < 4; i++)
             {
-                var (truck, load) = HaulTruck(truckModel, twin[f.shovel]);
+                var (truck, load) = dumpTruck != null ? DumpTruck(dumpTruck, twin[f.shovel]) : HaulTruck(truckModel, twin[f.shovel]);
                 trucks.Add(truck); loads.Add(load);
             }
             fleet.trucks = trucks.ToArray(); fleet.loads = loads.ToArray();
         }
+
+        // a dozer cleaning the bench of face 1 and a water truck on the haul road at the rim
+        var dozer = Model("poly/bulldozer");
+        if (dozer != null)
+        {
+            float a = -Mathf.PI / 2 + 0.25f, r = BenchR(4) - 4;
+            Fit(dozer, twin["pit"], P(PIT.x + Mathf.Cos(a) * r, BenchY(4), PIT.z + Mathf.Sin(a) * r), 8, 2, a + Mathf.PI / 2);
+        }
+        var waterTruck = Model("poly/water-truck");
+        if (waterTruck != null) Fit(waterTruck, twin["pit"], P(CRUSHER.x - 20, 0, CRUSHER.z + 16), 8.5f, 2, 0.6f, 90);
+    }
+
+    // The Poly Pizza dump truck faces -z: turned inside its holder so that the
+    // holder's +z (TruckFleet's LookRotation) is forward. It is one mesh, so the
+    // ore it carries is a heap on the body, shown only on the way up.
+    static (Transform, GameObject) DumpTruck(GameObject model, Transform parent)
+    {
+        var g = Fit(model, parent, Vector3.zero, 8, 2, 0, 180);
+        g.name = "Truck";
+        var size = g.GetComponent<BoxCollider>().size;
+        var load = Prim(PrimitiveType.Cube, "Load", g, new Vector3(0, size.y * 0.84f, -size.z * 0.17f),
+            new Vector3(size.x * 0.7f, size.y * 0.2f, size.z * 0.42f), Mat(0x9b6a45), local: true);
+        Object.DestroyImmediate(load.GetComponent<Collider>());
+        return (g, load.gameObject);
     }
 
     static (Transform, GameObject) HaulTruck(GameObject model, Transform parent)
@@ -291,7 +316,9 @@ public static class MineSceneBuilder
     static void CrushingAndStockpile()
     {
         var crusher = Prim(PrimitiveType.Cube, "Crusher", twin["crusher"], P(CRUSHER.x, 8, CRUSHER.z), new Vector3(14, 16, 14), Mat(0x7d8b92, unique: true));
-        Prim(PrimitiveType.Cylinder, "Hopper", twin["crusher"], P(CRUSHER.x - 8, 3, CRUSHER.z + 4), new Vector3(10, 3, 10), Mat(0x5d666b));
+        var hopper = Model("factory/hopper-high-round");
+        if (hopper != null) Recolor(Fit(hopper, twin["crusher"], P(CRUSHER.x - 9, 0, CRUSHER.z + 5), 11, 1, 0), 0x5d666b);
+        else Prim(PrimitiveType.Cylinder, "Hopper", twin["crusher"], P(CRUSHER.x - 8, 3, CRUSHER.z + 4), new Vector3(10, 3, 10), Mat(0x5d666b));
         Highlight("crusher", crusher);
         Label(twin["crusher"], P(CRUSHER.x, 24, CRUSHER.z), "Дробилка ККД", "{crusher.throughput:N0} т/ч · {crusher.load:N0} %");
 
@@ -328,31 +355,30 @@ public static class MineSceneBuilder
     static void Plant()
     {
         Prim(PrimitiveType.Cube, "Plant floor", twin["plant"], P(PLANT.x, 0.5f, PLANT.z), new Vector3(46, 1, 48), Mat(0x6f777b));
-        foreach (var (dx, dz) in new[] { (-22, -23), (22, -23), (-22, 23), (22, 23) })
-            Prim(PrimitiveType.Cube, "Column", twin["plant"], P(PLANT.x + dx, 13, PLANT.z + dz), new Vector3(1.2f, 26, 1.2f), Mat(0x6a7479));
-        Prim(PrimitiveType.Cube, "Roof", twin["plant"], P(PLANT.x, 26, PLANT.z), new Vector3(46, 0.6f, 48), Mat(0x8a969c));
+        // an open steel frame instead of a solid roof, so the grinding lines stay visible from above
+        var steel = Mat(0x6a7479);
+        foreach (var (dx, dz) in new[] { (-22, -23), (22, -23), (-22, 23), (22, 23), (-22, 0), (22, 0) })
+            Prim(PrimitiveType.Cube, "Column", twin["plant"], P(PLANT.x + dx, 13, PLANT.z + dz), new Vector3(1.2f, 26, 1.2f), steel);
+        foreach (var dz in new[] { -23, 0, 23 })
+            Prim(PrimitiveType.Cube, "Roof girder", twin["plant"], P(PLANT.x, 26, PLANT.z + dz), new Vector3(46, 1, 1), steel);
+        for (int k = -2; k <= 2; k++)
+            Prim(PrimitiveType.Cube, "Roof beam", twin["plant"], P(PLANT.x + k * 11, 26.4f, PLANT.z), new Vector3(0.7f, 0.7f, 48), steel);
+        Prim(PrimitiveType.Cube, "Crane rail", twin["plant"], P(PLANT.x, 22, PLANT.z - 23), new Vector3(46, 0.8f, 0.8f), Mat(0xc9a227));
+        Prim(PrimitiveType.Cube, "Crane rail", twin["plant"], P(PLANT.x, 22, PLANT.z + 23), new Vector3(46, 0.8f, 0.8f), Mat(0xc9a227));
+        Prim(PrimitiveType.Cube, "Overhead crane", twin["plant"], P(PLANT.x - 14, 22.8f, PLANT.z), new Vector3(2, 1.4f, 47), Mat(0xc9a227));
 
         for (int i = 0; i < 2; i++)
         {
             var name = $"mill-{i + 1}";
             float z = PLANT.z - 11 + i * 22;
-            var pivot = new GameObject("Drum").transform;
-            pivot.SetParent(twin[name], false);
-            pivot.position = P(PLANT.x - 6, 10, z);
-            var shell = Mat(0x4f8fa8, unique: true);
-            var drum = Prim(PrimitiveType.Cylinder, "SAG mill", pivot, Vector3.zero, new Vector3(17, 6.5f, 17), shell, local: true);
-            drum.transform.localRotation = Quaternion.Euler(0, 0, 90);
-            for (int k = 0; k < 8; k++)
-            {
-                float a = k / 8f * 360f;
-                var rib = Prim(PrimitiveType.Cube, "Rib", pivot, Quaternion.Euler(a, 0, 0) * new Vector3(0, 8.5f, 0), new Vector3(13.4f, 1, 1.2f), Mat(0x2c3e47), local: true);
-                rib.transform.localRotation = Quaternion.Euler(a, 0, 0);
-            }
-            var ball = Prim(PrimitiveType.Cylinder, "Ball mill", twin[name], P(PLANT.x + 12, 6, z), new Vector3(8.4f, 6, 8.4f), Mat(0x6c9fb3, unique: true));
-            ball.transform.rotation = Quaternion.Euler(0, 0, 90);
+            float outward = i == 0 ? -1 : 1;           // the drives stand on the outer side of each line
+            var shells = new List<Renderer>();
+            var sag = GrindingMill(twin[name], P(PLANT.x - 9, 10, z), 8f, 6f, 2.6f, 2.4f, outward, true, shells);
+            var ball = GrindingMill(twin[name], P(PLANT.x + 12, 7, z), 5f, 11f, 1.9f, 1.6f, outward, false, shells);
+            Hydrocyclones(twin[name], new Vector3(PLANT.x + 1.5f, 0, z - outward * 6));
             var md = twin[name].gameObject.AddComponent<MillDrum>();
-            md.twin = name; md.drum = pivot; md.shells = new[] { drum, ball };
-            Highlight(name, drum, ball);
+            md.twin = name; md.drum = sag; md.drums = new[] { ball }; md.shells = shells.ToArray();
+            Highlight(name, shells.ToArray());
         }
         Label(twin["mill-1"], P(PLANT.x - 14, 40, PLANT.z - 10), "Измельчение: 2 линии МПСИ + шаровая",
             "линия 1: {mill-1.feed:N0} т/ч · {mill-1.power:N1} МВт · {mill-1.state}\nлиния 2: {mill-2.feed:N0} т/ч · {mill-2.power:N1} МВт · {mill-2.state}");
@@ -381,6 +407,122 @@ public static class MineSceneBuilder
         Flow("flotation", "concentrate", 50, twin["flotation"], new[] { P(FLOT.x + 28, 4, FLOT.z - 2), P(150, 6, -62), P(CONC.x - 14, 5, CONC.z + 6) },
             0x5f6b55, 1.4f, 18, 0.7f, 0x4a5257);
         Label(twin["flotation"], P(CONC.x + 4, 26, CONC.z - 4), "Склад медного концентрата", "{flotation.concentrate:N1} т/ч");
+    }
+
+
+    // One tumbling mill along x: shell with flanges and liner bolt rows, conical
+    // heads, trunnions on bearing pedestals, girth gear with pinion, gearbox and
+    // motor on the `outward` side; a SAG mill also gets a feed chute and the
+    // discharge trommel. Returns the pivot that turns (shell, heads, gear,
+    // trunnions, trommel); shell and heads go to `shells` for the state colour.
+    static Transform GrindingMill(Transform parent, Vector3 axis, float r, float len, float headLen, float trunnion,
+        float outward, bool sag, List<Renderer> shells)
+    {
+        var pivot = new GameObject(sag ? "SAG mill" : "Ball mill").transform;
+        pivot.SetParent(parent, false);
+        pivot.position = axis;
+        var shell = Mat(0x4f8fa8, unique: true);
+        var dark = Mat(0x2c3e47);
+        Renderer AlongX(PrimitiveType t, string n, float x, float radius, float length, Material m)
+        {
+            var rr = Prim(t, n, pivot, new Vector3(x, 0, 0), new Vector3(radius * 2, length / 2, radius * 2), m, local: true);
+            rr.transform.localRotation = Quaternion.Euler(0, 0, 90);
+            return rr;
+        }
+        shells.Add(AlongX(PrimitiveType.Cylinder, "Shell", 0, r, len, shell));
+        foreach (var sx in new[] { -1f, 1f })
+        {
+            AlongX(PrimitiveType.Cylinder, "Flange", sx * (len / 2 - 0.2f), r + 0.35f, 0.5f, dark);
+            var head = Frustum("Head", pivot, r, trunnion + 0.3f, headLen, shell);
+            head.transform.localPosition = new Vector3(sx * (len / 2 + headLen / 2), 0, 0);
+            head.transform.localRotation = Quaternion.Euler(0, 0, sx > 0 ? -90 : 90);
+            shells.Add(head);
+            AlongX(PrimitiveType.Cylinder, "Trunnion", sx * (len / 2 + headLen + 1), trunnion, 2, Mat(0x7f8d94));
+        }
+        for (int k = 0; k < 12; k++)                      // rows of liner bolts: they show the drum turning
+        {
+            float a = k / 12f * 360f;
+            var bar = Prim(PrimitiveType.Cube, "Liner bolts", pivot, Quaternion.Euler(a, 0, 0) * new Vector3(0, r + 0.08f, 0),
+                new Vector3(len - 1, 0.25f, 0.5f), dark, local: true);
+            bar.transform.localRotation = Quaternion.Euler(a, 0, 0);
+            Object.DestroyImmediate(bar.GetComponent<Collider>());
+        }
+        float gearX = (sag ? 1 : -1) * (len / 2 - 1.2f);
+        AlongX(PrimitiveType.Cylinder, "Girth gear", gearX, r + 1.1f, 0.9f, Mat(0x3a3f42));
+        if (sag)
+        {
+            var trommel = AlongX(PrimitiveType.Cylinder, "Trommel screen", len / 2 + headLen + 3.5f, trunnion - 0.2f, 3.5f, Mat(0x8a8f86));
+            Object.DestroyImmediate(trommel.GetComponent<Collider>());
+        }
+
+        // static parts, in the parent's frame
+        var pedestal = Mat(0x6a7479);
+        float pedH = axis.y - trunnion;
+        foreach (var sx in new[] { -1f, 1f })
+        {
+            float x = axis.x + sx * (len / 2 + headLen + 1);
+            Prim(PrimitiveType.Cube, "Bearing pedestal", parent, new Vector3(x, pedH / 2 + 0.5f, axis.z), new Vector3(3, pedH, trunnion * 2 + 2), pedestal);
+            Prim(PrimitiveType.Cube, "Bearing cap", parent, new Vector3(x, axis.y + trunnion * 0.6f, axis.z), new Vector3(2.4f, 1, trunnion * 2 + 1.4f), pedestal);
+        }
+        float total = len + headLen * 2 + 4;
+        Prim(PrimitiveType.Cube, "Foundation", parent, new Vector3(axis.x, 0.75f, axis.z), new Vector3(total + 2, 0.5f, r * 2 + 3), Mat(0x8d8a82));
+        // drive: pinion under the gear, gearbox, motor, on the outer side
+        float dz = -outward * (r + 3.2f);                  // P() mirrors z: outward in Three.js is -z in Unity
+        float gx = axis.x + gearX;
+        Prim(PrimitiveType.Cube, "Pinion housing", parent, new Vector3(gx, axis.y - r * 0.55f, axis.z + dz * 0.75f), new Vector3(1.8f, 2.4f, 2.6f), Mat(0x3a3f42));
+        Prim(PrimitiveType.Cube, "Gearbox", parent, new Vector3(gx - 3.5f, 2.6f, axis.z + dz), new Vector3(3.6f, 3.2f, 3.4f), Mat(0x5c6b73));
+        var motor = Prim(PrimitiveType.Cylinder, "Motor", parent, new Vector3(gx - 8f, 2.8f, axis.z + dz), new Vector3(3.6f, 2.6f, 3.6f), Mat(0x37586b));
+        motor.transform.rotation = Quaternion.Euler(0, 0, 90);
+        Prim(PrimitiveType.Cube, "Drive shaft", parent, new Vector3(gx - 1.8f, 2.6f, axis.z + dz * 0.88f), new Vector3(3.4f, 0.6f, 0.6f), Mat(0x7f8d94));
+        if (sag)
+        {
+            // feed chute from the conveyor into the feed trunnion
+            float fx = axis.x - (len / 2 + headLen + 2.2f);
+            var chute = Prim(PrimitiveType.Cube, "Feed chute", parent, new Vector3(fx - 1.5f, axis.y + 3.2f, axis.z), new Vector3(2.4f, 7, 3), Mat(0x5d666b));
+            chute.transform.rotation = Quaternion.Euler(0, 0, -28);
+        }
+        return pivot;
+    }
+
+    // hydrocyclone cluster on a stand between the SAG and the ball mill, beside the line, with its feed pump
+    static void Hydrocyclones(Transform parent, Vector3 at)
+    {
+        var steel = Mat(0x6a7479);
+        var c = P(at);
+        foreach (var (dx, dz) in new[] { (-2.2f, -2.2f), (2.2f, -2.2f), (-2.2f, 2.2f), (2.2f, 2.2f) })
+            Prim(PrimitiveType.Cube, "Stand leg", parent, c + new Vector3(dx, 6, dz), new Vector3(0.4f, 12, 0.4f), steel);
+        Prim(PrimitiveType.Cube, "Platform", parent, c + new Vector3(0, 12, 0), new Vector3(6, 0.4f, 6), steel);
+        Prim(PrimitiveType.Cylinder, "Distributor", parent, c + new Vector3(0, 14, 0), new Vector3(2.2f, 1, 2.2f), Mat(0x7f8d94));
+        for (int k = 0; k < 6; k++)
+        {
+            float a = k / 6f * Mathf.PI * 2;
+            var pos = c + new Vector3(Mathf.Cos(a) * 2.1f, 13.6f, Mathf.Sin(a) * 2.1f);
+            var cone = Frustum("Hydrocyclone", parent, 0.15f, 0.55f, 3.2f, Mat(0xd6dade));
+            cone.transform.position = pos;
+            cone.transform.rotation = Quaternion.Euler(Mathf.Sin(a) * 12, 0, -Mathf.Cos(a) * 12);
+        }
+        Prim(PrimitiveType.Cube, "Cyclone feed pump", parent, c + new Vector3(-3.6f, 1.6f, 0), new Vector3(2, 2.2f, 2.6f), Mat(0x37586b));
+    }
+
+    // a closed frustum along local y, centred: radius r0 at the bottom (y = -h/2), r1 at the top
+    static Renderer Frustum(string name, Transform parent, float r0, float r1, float h, Material mat)
+    {
+        const int seg = 32;
+        var v = new List<Vector3>(); var t = new List<int>();
+        for (int s = 0; s < seg; s++)
+        {
+            float a0 = s * Mathf.PI * 2 / seg, a1 = (s + 1) * Mathf.PI * 2 / seg;
+            int i = v.Count;
+            v.Add(new Vector3(Mathf.Cos(a0) * r0, -h / 2, Mathf.Sin(a0) * r0)); v.Add(new Vector3(Mathf.Cos(a1) * r0, -h / 2, Mathf.Sin(a1) * r0));
+            v.Add(new Vector3(Mathf.Cos(a1) * r1, h / 2, Mathf.Sin(a1) * r1)); v.Add(new Vector3(Mathf.Cos(a0) * r1, h / 2, Mathf.Sin(a0) * r1));
+            t.AddRange(new[] { i, i + 2, i + 1, i, i + 3, i + 2 });
+            int j = v.Count;                                   // the end caps
+            v.Add(new Vector3(0, h / 2, 0)); v.Add(new Vector3(Mathf.Cos(a0) * r1, h / 2, Mathf.Sin(a0) * r1)); v.Add(new Vector3(Mathf.Cos(a1) * r1, h / 2, Mathf.Sin(a1) * r1));
+            v.Add(new Vector3(0, -h / 2, 0)); v.Add(new Vector3(Mathf.Cos(a1) * r0, -h / 2, Mathf.Sin(a1) * r0)); v.Add(new Vector3(Mathf.Cos(a0) * r0, -h / 2, Mathf.Sin(a0) * r0));
+            t.AddRange(new[] { j, j + 2, j + 1, j + 3, j + 5, j + 4 });
+        }
+        var go = MeshObject(name, v, t, mat, parent);
+        return go.GetComponent<MeshRenderer>();
     }
 
     // ---------------------------------------------------------------- water
@@ -468,11 +610,23 @@ public static class MineSceneBuilder
         var end = new Vector3(to.x, 14, to.y);
         int towers = Mathf.Max(2, Mathf.RoundToInt(Vector3.Distance(from, end) / 45));
         var pts = new List<Vector3>();
+        var towerModel = Model("poly/transmission-tower");
+        var along = P(end) - P(from); along.y = 0;
         for (int i = 0; i <= towers; i++)
         {
             var p = Vector3.Lerp(from, end, (float)i / towers);
-            Prim(PrimitiveType.Cube, "Tower", twin["substation"], P(p.x, 7, p.z), new Vector3(0.8f, 16, 0.8f), Mat(0x5b6266));
-            Prim(PrimitiveType.Cube, "Crossarm", twin["substation"], P(p.x, 14.5f, p.z), new Vector3(5, 0.5f, 0.5f), Mat(0x5b6266));
+            if (towerModel != null)
+            {
+                // the lattice tower's crossarm is along its x: turn its z along the line
+                var tw = Fit(towerModel, twin["substation"], P(p.x, 0, p.z), 17, 1, 0);
+                tw.rotation = Quaternion.LookRotation(along);
+                Recolor(tw, 0x6b7378);
+            }
+            else
+            {
+                Prim(PrimitiveType.Cube, "Tower", twin["substation"], P(p.x, 7, p.z), new Vector3(0.8f, 16, 0.8f), Mat(0x5b6266));
+                Prim(PrimitiveType.Cube, "Crossarm", twin["substation"], P(p.x, 14.5f, p.z), new Vector3(5, 0.5f, 0.5f), Mat(0x5b6266));
+            }
             pts.Add(P(p.x, 14.6f, p.z));
             if (i < towers) { var q = Vector3.Lerp(from, end, (i + 0.5f) / towers); pts.Add(P(q.x, 11.8f, q.z)); }
         }
@@ -495,7 +649,11 @@ public static class MineSceneBuilder
         var hangar = Model("industrial/building-j");
         if (hangar == null) { Debug.LogWarning("Kenney models not imported: the site buildings are left out"); return; }
         Place(hangar, site, P(WORKSHOP), 24, Mathf.PI);
-        Place(Model("vehicles/tractor-shovel"), twin["tailings"], P(TSF.x + 59, 6, TSF.z + 4), 3, 0.4f);
+        var dozer = Model("poly/bulldozer");
+        if (dozer != null) Fit(dozer, twin["tailings"], P(TSF.x + 59, 6, TSF.z + 4), 8, 2, 0.4f);
+        else Place(Model("vehicles/tractor-shovel"), twin["tailings"], P(TSF.x + 59, 6, TSF.z + 4), 3, 0.4f);
+        var silos = Model("poly/silos");
+        if (silos != null) Fit(silos, twin["flotation"], P(FLOT.x + 52, 0, FLOT.z - 4), 15, 1, Mathf.PI / 2);
         Place(Model("industrial/building-r"), twin["flotation"], P(CONC), 15, -Mathf.PI / 2);
         var container = Model("industrial/shipping-container-a");
         for (int i = 0; i < 6; i++) Place(container, site, P(CONC.x + 22 + (i % 3) * 5, 0, CONC.z - 10 + (i / 3) * 10), 9, 0);
@@ -524,6 +682,47 @@ public static class MineSceneBuilder
         var size = go.transform.InverseTransformVector(bounds.size);
         box.size = new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), Mathf.Abs(size.z));
         return go.transform;
+    }
+
+    // A model sized by its own bounds: `size` along `axis` (0 x, 1 y, 2 z of the
+    // holder), standing on the ground at `pos`, centred, turned `turn` degrees
+    // inside its holder (for models built facing another way) and the holder
+    // turned by rotY like Place. Models from different sources come in any unit,
+    // so this keeps the layout in the scene's units. The holder carries the
+    // click collider; shadows are off, as for the Kenney models.
+    static Transform Fit(GameObject model, Transform parent, Vector3 pos, float size, int axis, float rotY, float turn = 0)
+    {
+        var holder = new GameObject(model.name).transform;
+        holder.SetParent(parent, false);
+        holder.position = Vector3.zero; holder.rotation = Quaternion.identity;
+        var go = (GameObject)PrefabUtility.InstantiatePrefab(model, holder);
+        go.transform.localPosition = Vector3.zero;
+        go.transform.localRotation = Quaternion.Euler(0, turn, 0);
+        go.transform.localScale = Vector3.one;
+        var rs = go.GetComponentsInChildren<Renderer>();
+        var b = rs.Length > 0 ? rs[0].bounds : new Bounds();
+        foreach (var r in rs) { b.Encapsulate(r.bounds); r.shadowCastingMode = ShadowCastingMode.Off; }
+        float k = size / Mathf.Max(b.size[axis], 1e-4f);
+        go.transform.localScale = Vector3.one * k;
+        go.transform.localPosition = new Vector3(-b.center.x * k, -b.min.y * k, -b.center.z * k);
+        var box = holder.gameObject.AddComponent<BoxCollider>();
+        box.center = new Vector3(0, b.size.y * k / 2, 0);
+        box.size = b.size * k;
+        holder.position = pos;
+        holder.rotation = Quaternion.Euler(0, -rotY * Mathf.Rad2Deg, 0);
+        return holder;
+    }
+
+    // one flat colour over a model (the Kenney factory parts are lavender)
+    static void Recolor(Transform t, int hex)
+    {
+        var m = Mat(hex);
+        foreach (var r in t.GetComponentsInChildren<Renderer>())
+        {
+            var shared = new Material[r.sharedMaterials.Length];
+            for (int i = 0; i < shared.Length; i++) shared[i] = m;
+            r.sharedMaterials = shared;
+        }
     }
 
     static Transform Find(Transform t, string name)

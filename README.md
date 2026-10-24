@@ -82,7 +82,7 @@ curl -X PUT -H 'Content-Type: application/json' -d '"departments"' \
 
 ## Лицензия
 
-MIT, см. [LICENSE](LICENSE). Three.js — MIT ([team/web/vendor/LICENSE](team/web/vendor/LICENSE)). 3D-модели Kenney — CC0 ([team/web/models/](team/web/models/)).
+MIT, см. [LICENSE](LICENSE). Three.js — MIT ([team/web/vendor/LICENSE](team/web/vendor/LICENSE)). 3D-модели Kenney — CC0; модели с Poly Pizza — CC BY 3.0 и CC0, авторы и источники — в [team/web/models/poly/CREDITS.md](team/web/models/poly/CREDITS.md).
 
 ---
 

@@ -156,7 +156,7 @@ flowchart LR
 
 ## 7. 3D-страница
 
-Файлы [web/index.html](web/index.html), [web/app.js](web/app.js), [web/style.css](web/style.css). Three.js r160 (с GLTFLoader) лежит в [web/vendor/](web/vendor/), готовые модели Kenney (CC0) — в [web/models/](web/models/); интернет странице не нужен. Если модели не загрузятся, сцена остаётся с простыми фигурами.
+Файлы [web/index.html](web/index.html), [web/app.js](web/app.js), [web/style.css](web/style.css). Three.js r160 (с GLTFLoader) лежит в [web/vendor/](web/vendor/), готовые модели Kenney (CC0) и Poly Pizza (CC BY 3.0 и CC0, авторы — в [web/models/poly/CREDITS.md](web/models/poly/CREDITS.md)) — в [web/models/](web/models/); интернет странице не нужен. Если модели не загрузятся, сцена остаётся с простыми фигурами.
 
 **Откуда данные.** Раз в 2 секунды страница запрашивает `GET /api/2/things?ids=kz.limit:…` у своего nginx. Тот добавляет логин и пароль Ditto на стороне сервера ([web/nginx.conf.template](web/nginx.conf.template)) — в браузер пароль не попадает. Прокси разрешает ровно две вещи: читать двойники `kz.limit:*` и записывать `active`/`value` в features двойника `kz.limit:control`. Всё остальное получает 403.
 

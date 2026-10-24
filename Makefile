@@ -62,7 +62,7 @@ unity-build:
 	@test -x "$(UNITY)" || { echo "ERROR: Unity Editor not found. Install Unity 6 with Web Build Support in Unity Hub"; \
 	  echo "       (team/unity/README.md), or pass UNITY=/path/to/Editor/Unity"; exit 1; }
 	rm -rf team/unity/Assets/Models && mkdir -p team/unity/Assets/Models team/unity/Logs
-	cp -r team/web/models/industrial team/web/models/vehicles team/unity/Assets/Models/
+	cp -r team/web/models/industrial team/web/models/vehicles team/web/models/factory team/web/models/poly team/unity/Assets/Models/
 	"$(UNITY)" -batchmode -nographics -quit -projectPath team/unity -buildTarget WebGL \
 	  -executeMethod MineSceneBuilder.BuildWebGL -logFile team/unity/Logs/build.log \
 	  || { tail -60 team/unity/Logs/build.log; exit 1; }

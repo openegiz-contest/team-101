@@ -26,7 +26,7 @@ Unity builds only with an activated licence, and a free Personal licence is acti
 3. **Installs → Install Editor → Unity 6 LTS** with the module **Web Build Support**.
 4. `make unity-build`, then `make unity-on`.
 
-The build runs in batch mode: [Assets/Editor/MineSceneBuilder.cs](Assets/Editor/MineSceneBuilder.cs) generates the scene from code (the layout of `team/web/app.js`), imports the Kenney models from `team/web/models/` with glTFast, and writes an uncompressed WebGL build, as the panel requires. The log is in `team/unity/Logs/build.log`.
+The build runs in batch mode: [Assets/Editor/MineSceneBuilder.cs](Assets/Editor/MineSceneBuilder.cs) generates the scene from code (the layout of `team/web/app.js`), imports the models from `team/web/models/` with glTFast (Kenney CC0 kits, and the Poly Pizza dump truck, bulldozer, water truck, lattice towers and silos, credited in [poly/CREDITS.md](../web/models/poly/CREDITS.md)), sizes each one by its own bounds (`Fit`), and writes an uncompressed WebGL build, as the panel requires. The log is in `team/unity/Logs/build.log`.
 
 ## How the data gets in
 

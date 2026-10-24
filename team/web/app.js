@@ -262,7 +262,7 @@ for (const f of FACES) {
 // ---------------------------------------------------- crushing, stockpile ---
 const crusherMat = mat(0x7d8b92);
 mesh(new THREE.BoxGeometry(14, 16, 14), crusherMat, CRUSHER.x, 8, CRUSHER.z);
-mesh(new THREE.CylinderGeometry(7, 2.5, 6, 16), mat(0x5d666b), CRUSHER.x - 8, 3, CRUSHER.z + 4);
+const crusherHopper = mesh(new THREE.CylinderGeometry(7, 2.5, 6, 16), mat(0x5d666b), CRUSHER.x - 8, 3, CRUSHER.z + 4);
 const crusherChip = label(scene, CRUSHER.x, 24, CRUSHER.z, 'Дробилка ККД');
 register('crusher', [crusherMat], crusherChip);
 
@@ -281,34 +281,95 @@ register('conveyor', [conveyor1.pipeMat]);
 // ------------------------------------------------------------ the plant ----
 const PLANT = new THREE.Vector3(84, 0, -24);
 {
-  const frame = mat(0x9aa7ae, { transparent: true, opacity: 0.18, depthWrite: false });
-  const b = mesh(new THREE.BoxGeometry(44, 26, 46), frame, PLANT.x, 13, PLANT.z);
-  b.castShadow = false;
+  // an open steel frame instead of a solid roof, so the grinding lines stay visible from above
   mesh(new THREE.BoxGeometry(46, 1, 48), mat(0x6f777b), PLANT.x, 0.5, PLANT.z);
-  for (const [dx, dz] of [[-22, -23], [22, -23], [-22, 23], [22, 23]]) {
-    mesh(new THREE.BoxGeometry(1.2, 26, 1.2), mat(0x6a7479), PLANT.x + dx, 13, PLANT.z + dz);
+  const steel = mat(0x6a7479), yellow = mat(0xc9a227);
+  for (const [dx, dz] of [[-22, -23], [22, -23], [-22, 23], [22, 23], [-22, 0], [22, 0]]) {
+    mesh(new THREE.BoxGeometry(1.2, 26, 1.2), steel, PLANT.x + dx, 13, PLANT.z + dz);
   }
+  for (const dz of [-23, 0, 23]) mesh(new THREE.BoxGeometry(46, 1, 1), steel, PLANT.x, 26, PLANT.z + dz);
+  for (let k = -2; k <= 2; k++) mesh(new THREE.BoxGeometry(0.7, 0.7, 48), steel, PLANT.x + k * 11, 26.4, PLANT.z);
+  for (const dz of [-23, 23]) mesh(new THREE.BoxGeometry(46, 0.8, 0.8), yellow, PLANT.x, 22, PLANT.z + dz);
+  mesh(new THREE.BoxGeometry(2, 1.4, 47), yellow, PLANT.x - 14, 22.8, PLANT.z);       // overhead crane
 }
+
+// One tumbling mill along x: shell with flanges and liner bolt rows, conical
+// heads, trunnions on bearing pedestals, girth gear with pinion, gearbox and
+// motor on the `outward` side; a SAG mill also gets a feed chute and the
+// discharge trommel. Returns the group that turns. Same as GrindingMill() in
+// the Unity scene builder.
+function grindingMill(x, y, z, { r, len, headLen, trunnion, outward, sag, shell }) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  scene.add(g);
+  const dark = mat(0x2c3e47), steel = mat(0x7f8d94, { metalness: 0.4 }), iron = mat(0x3a3f42);
+  const alongX = (geo, m, dx) => { const c = mesh(geo, m, dx, 0, 0, g); c.rotation.z = Math.PI / 2; return c; };
+  alongX(new THREE.CylinderGeometry(r, r, len, 40), shell, 0);
+  for (const sx of [-1, 1]) {
+    alongX(new THREE.CylinderGeometry(r + 0.35, r + 0.35, 0.5, 40), dark, sx * (len / 2 - 0.2));
+    const head = mesh(new THREE.CylinderGeometry(trunnion + 0.3, r, headLen, 40), shell, sx * (len / 2 + headLen / 2), 0, 0, g);
+    head.rotation.z = -sx * Math.PI / 2;
+    alongX(new THREE.CylinderGeometry(trunnion, trunnion, 2, 24), steel, sx * (len / 2 + headLen + 1));
+  }
+  for (let k = 0; k < 12; k++) {      // rows of liner bolts: they show the drum turning
+    const a = (k / 12) * Math.PI * 2;
+    const bar = mesh(new THREE.BoxGeometry(len - 1, 0.25, 0.5), dark, 0, Math.cos(a) * (r + 0.08), Math.sin(a) * (r + 0.08), g);
+    bar.rotation.x = a;
+  }
+  const gearX = (sag ? 1 : -1) * (len / 2 - 1.2);
+  alongX(new THREE.CylinderGeometry(r + 1.1, r + 1.1, 0.9, 48), iron, gearX);
+  if (sag) alongX(new THREE.CylinderGeometry(trunnion - 0.2, trunnion - 0.2, 3.5, 20), mat(0x8a8f86), len / 2 + headLen + 3.5);
+
+  // static parts
+  const pedestal = mat(0x6a7479), pedH = y - trunnion;
+  for (const sx of [-1, 1]) {
+    const px = x + sx * (len / 2 + headLen + 1);
+    mesh(new THREE.BoxGeometry(3, pedH, trunnion * 2 + 2), pedestal, px, pedH / 2 + 0.5, z);
+    mesh(new THREE.BoxGeometry(2.4, 1, trunnion * 2 + 1.4), pedestal, px, y + trunnion * 0.6, z);
+  }
+  mesh(new THREE.BoxGeometry(len + headLen * 2 + 6, 0.5, r * 2 + 3), mat(0x8d8a82), x, 0.75, z);
+  // drive: pinion under the gear, gearbox, motor, on the outer side
+  const dz = outward * (r + 3.2), gx = x + gearX;
+  mesh(new THREE.BoxGeometry(1.8, 2.4, 2.6), iron, gx, y - r * 0.55, z + dz * 0.75);
+  mesh(new THREE.BoxGeometry(3.6, 3.2, 3.4), mat(0x5c6b73), gx - 3.5, 2.6, z + dz);
+  mesh(new THREE.CylinderGeometry(1.8, 1.8, 5.2, 24), mat(0x37586b), gx - 8, 2.8, z + dz).rotation.z = Math.PI / 2;
+  mesh(new THREE.BoxGeometry(3.4, 0.6, 0.6), steel, gx - 1.8, 2.6, z + dz * 0.88);
+  if (sag) {                          // feed chute from the conveyor into the feed trunnion
+    const fx = x - (len / 2 + headLen + 2.2);
+    mesh(new THREE.BoxGeometry(2.4, 7, 3), mat(0x5d666b), fx - 1.5, y + 3.2, z).rotation.z = -28 * Math.PI / 180;
+  }
+  return g;
+}
+// hydrocyclone cluster on a stand between the SAG and the ball mill, beside the line, with its feed pump
+function hydrocyclones(x, z) {
+  const steel = mat(0x6a7479), white = mat(0xd6dade);
+  for (const [dx, dz] of [[-2.2, -2.2], [2.2, -2.2], [-2.2, 2.2], [2.2, 2.2]]) {
+    mesh(new THREE.BoxGeometry(0.4, 12, 0.4), steel, x + dx, 6, z + dz);
+  }
+  mesh(new THREE.BoxGeometry(6, 0.4, 6), steel, x, 12, z);
+  mesh(new THREE.CylinderGeometry(1.1, 1.1, 2, 20), mat(0x7f8d94), x, 14, z);
+  const tilt = (12 * Math.PI) / 180;
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    const cone = mesh(new THREE.CylinderGeometry(0.55, 0.15, 3.2, 16), white, x + Math.cos(a) * 2.1, 13.6, z + Math.sin(a) * 2.1);
+    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(Math.cos(a) * Math.sin(tilt), Math.cos(tilt), Math.sin(a) * Math.sin(tilt)));
+  }
+  mesh(new THREE.BoxGeometry(2, 2.2, 2.6), mat(0x37586b), x - 3.6, 1.6, z);
+}
+
 const mills = {};
 for (const [i, name] of [[0, 'mill-1'], [1, 'mill-2']]) {
   const z = PLANT.z - 11 + i * 22;
-  const g = new THREE.Group();
-  g.position.set(PLANT.x - 6, 10, z);
-  scene.add(g);
+  const outward = i === 0 ? -1 : 1;   // the drives stand on the outer side of each line
   const shell = mat(0x4f8fa8, { metalness: 0.4, roughness: 0.45, emissive: 0x000000 });
-  const drum = mesh(new THREE.CylinderGeometry(8.5, 8.5, 13, 32), shell, 0, 0, 0, g);
-  drum.rotation.z = Math.PI / 2;
-  for (let k = 0; k < 8; k++) {       // girth ribs, so the rotation is visible
-    const a = (k / 8) * Math.PI * 2;
-    const rib = mesh(new THREE.BoxGeometry(13.4, 1, 1.2), mat(0x2c3e47), 0, Math.cos(a) * 8.5, Math.sin(a) * 8.5, g);
-    rib.rotation.x = a;
-  }
-  const ball = mesh(new THREE.CylinderGeometry(4.2, 4.2, 12, 24), mat(0x6c9fb3, { metalness: 0.4 }), PLANT.x + 12, 6, z);
-  ball.rotation.z = Math.PI / 2;
+  const g = grindingMill(PLANT.x - 9, 10, z, { r: 8, len: 6, headLen: 2.6, trunnion: 2.4, outward, sag: true, shell });
+  const ball = grindingMill(PLANT.x + 12, 7, z, { r: 5, len: 11, headLen: 1.9, trunnion: 1.6, outward, sag: false, shell });
+  hydrocyclones(PLANT.x + 1.5, z - outward * 6);
   mills[name] = { g, shell, ball, speed: 0 };
 }
 const millChip = label(scene, PLANT.x - 14, 40, PLANT.z - 10, 'Измельчение: 2 линии МПСИ + шаровая');
-for (const [name, m] of Object.entries(mills)) register(name, [m.shell, m.ball.material], millChip);
+for (const [name, m] of Object.entries(mills)) register(name, [m.shell], millChip);
 const conveyor2 = new Flow([[28, 3, -52], [48, 10, -38], [PLANT.x - 18, 12, PLANT.z]],
   { color: 0x9b6a45, box: true, size: 1.5, count: 60, tube: 0.8, tubeColor: 0x4a5257, speed: 0.08 });
 
@@ -399,6 +460,7 @@ const subChip = label(scene, SUB.x, 22, SUB.z, 'Подстанция 220/10 кВ
 register('substation', [subMat], subChip);
 
 const powerLines = {};
+const towersAt = [];                // {posts, at, along}: the posts are swapped for the lattice tower model
 function powerLine(name, to) {
   const from = new THREE.Vector3(SUB.x, 14, SUB.z - 8);
   const end = new THREE.Vector3(to[0], 14, to[1]);
@@ -406,8 +468,11 @@ function powerLine(name, to) {
   const pts = [];
   for (let i = 0; i <= towers; i++) {
     const p = from.clone().lerp(end, i / towers);
-    mesh(new THREE.BoxGeometry(0.8, 16, 0.8), mat(0x5b6266), p.x, 7, p.z);
-    mesh(new THREE.BoxGeometry(5, 0.5, 0.5), mat(0x5b6266), p.x, 14.5, p.z);
+    towersAt.push({
+      posts: [mesh(new THREE.BoxGeometry(0.8, 16, 0.8), mat(0x5b6266), p.x, 7, p.z),
+        mesh(new THREE.BoxGeometry(5, 0.5, 0.5), mat(0x5b6266), p.x, 14.5, p.z)],
+      at: new THREE.Vector3(p.x, 0, p.z), along: end.clone().sub(from).setY(0),
+    });
     pts.push([p.x, 14.6, p.z]);
     if (i < towers) {                         // sag between towers
       const q = from.clone().lerp(end, (i + 0.5) / towers);
@@ -423,9 +488,11 @@ powerLine('reclaim', [TSF.x - 64, TSF.z - 40]);
 
 // ------------------------------------------------- concentrate and site ----
 // Concentrate goes from flotation to its storage shed; the flow follows the
-// flotation twin. The shed, the workshop with idle haul trucks, the admin
-// block, boiler house, water tower, loader and dozer are Kenney CC0 models
-// (models/*/License.txt), loaded by useModels() below.
+// flotation twin. The shed, the workshop, the admin block, boiler house,
+// water tower, loader and crusher hopper are Kenney CC0 models
+// (models/*/License.txt); the haul trucks, dozers, water truck, power line
+// towers and silos are from Poly Pizza (models/poly/CREDITS.md). All are
+// loaded by useModels() below; until then the simple shapes stand in.
 const CONC = new THREE.Vector3(170, 0, -80);
 const concFlow = new Flow([[FLOT.x + 28, 4, FLOT.z - 2], [150, 6, -62], [CONC.x - 14, 5, CONC.z + 6]],
   { color: 0x5f6b55, box: true, size: 1.4, count: 24, tube: 0.7, tubeColor: 0x4a5257, speed: 0.06 });
@@ -441,7 +508,7 @@ const gltf = new GLTFLoader();
 const loadModel = (path) => gltf.loadAsync(`models/${path}.glb`).then((g) => {
   g.scene.traverse((o) => {
     if (!o.isMesh) return;
-    o.material = new THREE.MeshLambertMaterial({ map: o.material.map, color: o.material.color });
+    o.material = new THREE.MeshLambertMaterial({ map: o.material.map, color: o.material.color, vertexColors: o.material.vertexColors });
     o.receiveShadow = true;
   });
   return g.scene;
@@ -454,25 +521,57 @@ function place(model, scale, x, z, rotY = 0, y = 0) {
   scene.add(m);
   return m;
 }
-function haulTruck(model) {
+// Models from different sources come in any unit: fit() scales a copy so
+// that its size along `axis` (0 x, 1 y, 2 z) is `size` scene units, stands it
+// on the ground at x, z and turns it by rotY; `turn` first turns the model
+// inside its holder, so the holder's +z is its front. Same as Fit() in the
+// Unity scene builder.
+function fit(model, size, axis, x, z, rotY = 0, { y = 0, turn = 0, color } = {}) {
   const m = model.clone();
-  m.scale.setScalar(2.2);
-  m.getObjectByName('arm').visible = false;           // the garbage-truck arms; a haul truck has none
-  return { m, load: m.getObjectByName('trash'), wheels: m.children.filter((c) => c.name.startsWith('wheel')) };
+  m.rotation.y = turn;
+  if (color !== undefined) {
+    const c = new THREE.MeshLambertMaterial({ color });
+    m.traverse((o) => { if (o.isMesh) o.material = c; });
+  }
+  const b = new THREE.Box3().setFromObject(m), s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+  const k = size / Math.max(s.getComponent(axis), 1e-4);
+  m.scale.setScalar(k);
+  m.position.set(-c.x * k, -b.min.y * k, -c.z * k);
+  const g = new THREE.Group();
+  g.add(m);
+  g.position.set(x, y, z);
+  g.rotation.y = rotY;
+  g.userData.size = s.multiplyScalar(k);
+  scene.add(g);
+  return g;
 }
+// The Poly Pizza dump truck is one mesh: the ore it carries is a heap on the
+// body, shown only on the way up.
+function dumpTruck(model) {
+  const m = fit(model, 8, 2, 0, 0, 0, { turn: Math.PI });
+  scene.remove(m);
+  const s = m.userData.size;
+  const load = mesh(new THREE.BoxGeometry(s.x * 0.7, s.y * 0.2, s.z * 0.42), mat(0x9b6a45), 0, s.y * 0.84, -s.z * 0.17, m);
+  load.castShadow = false;
+  return { m, load, wheels: [] };
+}
+const optional = (path) => loadModel(path).catch((e) => { console.warn(`model ${path} not loaded:`, e); return null; });
 async function useModels() {
-  const [truck, loader, shed, hangar, admin, boiler, tower, container, tankL] = await Promise.all([
-    'vehicles/garbage-truck', 'vehicles/tractor-shovel', 'industrial/building-r', 'industrial/building-j',
+  const [loader, shed, hangar, admin, boiler, tower, container, tankL] = await Promise.all([
+    'vehicles/tractor-shovel', 'industrial/building-r', 'industrial/building-j',
     'industrial/building-e', 'industrial/building-c', 'industrial/water-tower', 'industrial/shipping-container-a',
     'industrial/detail-tank-large'].map(loadModel));
-  for (const { t } of trucks) {
-    const h = haulTruck(truck);
+  const [truck, dozer, waterTruck, lattice, silos, hopper] = await Promise.all([
+    'poly/dump-truck', 'poly/bulldozer', 'poly/water-truck', 'poly/transmission-tower', 'poly/silos',
+    'factory/hopper-high-round'].map(optional));
+  for (const { t } of truck ? trucks : []) {
+    const h = dumpTruck(truck);
     t.g.remove(t.body);
     t.g.add(h.m);
     Object.assign(t, { body: h.m, load: h.load, wheels: h.wheels });
   }
-  for (const p of PARK) {
-    const h = haulTruck(truck);
+  for (const p of truck ? PARK : []) {
+    const h = dumpTruck(truck);
     h.load.visible = false;
     h.m.position.copy(p);
     h.m.rotation.y = Math.PI;
@@ -483,7 +582,26 @@ async function useModels() {
   const stockLoader = place(loader, 3, -4, -66, Math.PI / 2 - 0.3);
   stockLoader.userData.shovel = stockLoader.getObjectByName('shovel');
   loaders.push(stockLoader);
-  loaders.push(place(loader, 3, TSF.x + 59, TSF.z + 4, 0.4, 6));      // dozer on the dam crest
+  if (dozer) {
+    fit(dozer, 8, 2, TSF.x + 59, TSF.z + 4, 0.4, { y: 6 });           // dozer on the dam crest
+    const a = -Math.PI / 2 + 0.25, r = benchR(4) - 4;                 // and one cleaning the bench of face 1
+    fit(dozer, 8, 2, PIT.x + Math.cos(a) * r, PIT.z + Math.sin(a) * r, a + Math.PI / 2, { y: benchY(4) });
+  } else {
+    loaders.push(place(loader, 3, TSF.x + 59, TSF.z + 4, 0.4, 6));
+  }
+  if (waterTruck) fit(waterTruck, 8.5, 2, CRUSHER.x - 20, CRUSHER.z + 16, 0.6, { turn: -Math.PI / 2 });   // dust suppression
+  if (hopper) {
+    crusherHopper.visible = false;
+    fit(hopper, 11, 1, CRUSHER.x - 9, CRUSHER.z + 5, 0, { color: 0x5d666b });
+  }
+  if (lattice) {
+    for (const t of towersAt) {
+      t.posts.forEach((p) => { p.visible = false; });
+      const g = fit(lattice, 17, 1, t.at.x, t.at.z, 0, { color: 0x6b7378 });
+      g.lookAt(t.at.clone().add(t.along));           // crossarm across the line
+    }
+  }
+  if (silos) fit(silos, 15, 1, FLOT.x + 52, FLOT.z - 4, Math.PI / 2);   // lime and reagent silos
   place(shed, 15, CONC.x, CONC.z, -Math.PI / 2);
   for (let i = 0; i < 6; i++) place(container, 9, CONC.x + 22 + (i % 3) * 5, CONC.z - 10 + Math.floor(i / 3) * 10, 0);
   place(tankL, 9, FLOT.x + 6, FLOT.z - 22, 0);                       // reagent tanks of the flotation
@@ -549,7 +667,6 @@ function update3d() {
     const f = v(name, 'feed');
     m.speed = state === 'running' ? 0.4 + 0.6 * f / 1600 : 0;
     m.shell.color.set(state === 'running' ? 0x4f8fa8 : state === 'repair' ? 0x6d6d6d : 0xb23a35);
-    m.ball.material.color.set(state === 'running' ? 0x6c9fb3 : 0x777777);
     m.state = state;
     const n = name.slice(-1);
     millLines.push(state === 'running'
@@ -800,7 +917,10 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.1);
   const t = clock.elapsedTime;
   for (const f of flows) f.tick(dt);
-  for (const m of Object.values(mills)) m.g.rotation.x += dt * m.speed * 1.6;
+  for (const m of Object.values(mills)) {
+    m.g.rotation.x += dt * m.speed * 1.6;
+    m.ball.rotation.x += dt * m.speed * 2.1;   // the smaller ball mill turns faster
+  }
   rake.rotation.y += dt * 0.25;
   for (const { face, t: truck } of trucks) {
     const active = face.trucks.indexOf(truck) < Math.ceil((face.rate || 0) / 420);
