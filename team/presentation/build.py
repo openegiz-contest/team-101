@@ -173,6 +173,17 @@ def s_complex():
         f'<p class="note">{t("23 двойника в Eclipse Ditto, пространство имён kz.limit. Связи — в атрибутах самих двойников: _parents (иерархия), ore_to, water_to, water_from, power_from (потоки).", "23 twins in Eclipse Ditto, namespace kz.limit. Links live in the twins’ own attributes: _parents (hierarchy), ore_to, water_to, water_from, power_from (flows).")}</p>')
 
 
+def s_openegiz():
+    return slide(head(t("Модель в OpenEgiz", "The model in OpenEgiz"), t(
+        "23 двойника и 18 типов: состав, состояния, связи",
+        "23 twins and 18 types: composition, states, links")) +
+        f"""<div class="pair">
+          <figure><img src="img/openegiz-twins.jpg" alt=""><figcaption>{t("OpenEgiz → Twins: комплекс и его 10 частей, у каждого двойника — картинка его объекта из 3D-сцены", "OpenEgiz → Twins: the complex and its 10 parts, each twin with a picture of its object from the 3D scene")}</figcaption></figure>
+          <figure><img src="img/openegiz-types.jpg" alt=""><figcaption>{t("OpenEgiz → Types: состав типа «Обогатительная фабрика» — 2 линии измельчения, флотация, сгуститель, резервуар", "OpenEgiz → Types: the «Processing plant» type holds 2 grinding lines, flotation, a thickener and a tank")}</figcaption></figure>
+        </div>
+        <p class="note">{t("Типы — в пространстве имён kz.limit.type, у каждого двойника атрибут type. Состояния типа с единицами берутся из модели: тип совпадает с тем, что публикуется.", "Types live in the kz.limit.type namespace; every twin has a type attribute. A type’s states and units come from the model, so the type matches what is published.")}</p>""")
+
+
 def s_physics():
     items = [
         (t("Твёрдость → энергия", "Hardness → energy"),
@@ -404,7 +415,7 @@ def s_team():
         f'</div></div>')
 
 
-SLIDES = [s_title, s_problem, s_concept, s_complex, s_physics, s_platform, s_optimizer,
+SLIDES = [s_title, s_problem, s_concept, s_complex, s_openegiz, s_physics, s_platform, s_optimizer,
           s_viz, s_unity, s_dispatcher, s_scenarios, s_results, s_compare, s_data, s_limits, s_team]
 
 
