@@ -8,6 +8,7 @@ downstream, so the graph of the complex is in Ditto itself.
 """
 
 import logging
+import os
 import sys
 import time
 import urllib.error
@@ -17,9 +18,13 @@ from platform_io import ditto
 
 log = logging.getLogger("setup")
 
+# Pictures for the OpenEgiz Twins app, cut from the 3D page and served by it
+# (team/web/img/). The browser loads them, so this is the address it sees.
+WEB_URL = os.environ.get("WEB_URL", "http://localhost:8100").rstrip("/")
+
 
 def twin(name, kind, title, parent=None, features=None, **attributes):
-    attrs = {"name": title, "kind": kind, "_isType": False}
+    attrs = {"name": title, "kind": kind, "_isType": False, "image": f"{WEB_URL}/img/{name}.jpg"}
     if parent:
         attrs["_parents"] = P.tid(parent)
     attrs.update(attributes)
@@ -80,6 +85,7 @@ def main():
                     # keep the scenario switches a running stand already has
                     try:
                         status, _ = ditto("GET", f"/things/{P.tid(name)}")
+                        ditto("PUT", f"/things/{P.tid(name)}/attributes/image", body["attributes"]["image"])
                         log.info("kept     %s", P.tid(name))
                         break
                     except urllib.error.HTTPError as exc:

@@ -10,6 +10,7 @@ services:
     environment:
       DITTO_URL: http://ditto-nginx:80
       DITTO_PASSWORD: ${DITTO_PASSWORD}
+      WEB_URL: http://${OPENEGIZ_PUBLIC_HOST:-localhost}:${LIMIT_WEB_PORT:-8100}
     depends_on:
       init:
         condition: service_completed_successfully
