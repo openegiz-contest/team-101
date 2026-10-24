@@ -30,16 +30,17 @@ def esc(s):
     return html.escape(s, quote=False)
 
 
-# Copper per model day, t: optimizer plan vs «each department for itself».
-# Same simulator, a model day from 16:30; `make evaluate` recomputes them
+# Copper per model day, t: optimizer plan vs «each department for itself»,
+# and the gain in %, as `make evaluate` prints it (computed there from
+# unrounded tonnes). Same simulator, a model day from 16:30
 # (team/engine/evaluate.py).
 RESULTS = [
-    (("Без ограничений", "No limits"), 244, 241, ("", "")),
-    (("Маловодный год", "Dry year"), 244, 212, ("блокировка по воде 18 ч", "water interlock 18 h")),
-    (("Вечерний пик", "Evening grid peak"), 237, 221, ("6 отключений САОН", "6 load-shedding trips")),
-    (("Маловодный год + пик", "Dry year + peak"), 237, 201, ("САОН ×6, блокировка 13\u00a0ч", "6 trips, interlock 13 h")),
-    (("Мельница №2 на ремонте", "Mill 2 under repair"), 122, 120, ("", "")),
-    (("Твёрдая руда, забой 3", "Hard ore, face 3"), 226, 224, ("", "")),
+    (("Без ограничений", "No limits"), 244, 241, 1.4, ("", "")),
+    (("Маловодный год", "Dry year"), 244, 212, 15.1, ("блокировка по воде 18 ч", "water interlock 18 h")),
+    (("Вечерний пик", "Evening grid peak"), 237, 221, 7.3, ("6 отключений САОН", "6 load-shedding trips")),
+    (("Маловодный год + пик", "Dry year + peak"), 237, 201, 18.0, ("САОН ×6, блокировка 13\u00a0ч", "6 trips, interlock 13 h")),
+    (("Мельница №2 на ремонте", "Mill 2 under repair"), 122, 120, 1.4, ("", "")),
+    (("Твёрдая руда, забой 3", "Hard ore, face 3"), 226, 224, 1.1, ("", "")),
 ]
 
 TEAM = [
@@ -332,12 +333,11 @@ def s_scenarios():
 def s_results():
     top = 260.0
     groups = []
-    for (name, a, b, note) in RESULTS:
-        gain = (a - b) / b * 100
+    for (name, a, b, gain, note) in RESULTS:
         ha, hb = a / top * 100, b / top * 100
         groups.append(f"""
           <div class="grp">
-            <div class="delta">{'+' if gain >= 0 else ''}{gain:.0f} %</div>
+            <div class="delta">{'+' if gain >= 0 else ''}{f"{gain:.1f}".replace(".", "," if LANG == "ru" else ".")} %</div>
             <div class="bars">
               <div class="bar plan" style="height:{ha:.1f}%"><span>{a}</span></div>
               <div class="bar dept" style="height:{hb:.1f}%"><span>{b}</span></div>
@@ -374,7 +374,7 @@ def stats(items, cls):
 def s_data():
     rows = [
         (t("Производительность", "Throughput"), t("2 × ~1 560 т/ч ≈ 25 млн т/год", "2 × ~1,560 t/h ≈ 25 Mt/y"), t("одна сульфидная фабрика Актогая (KAZ Minerals)", "one Aktogay sulphide plant (KAZ Minerals)")),
-        (t("Содержание Cu", "Cu grade"), "0.29 / 0.36 / 0.47 %", t("Актогай: 0,32 % в ресурсах, 0,50 % в руде 2023 г.", "Aktogay: 0.32% in resources, 0.50% milled in 2023")),
+        (t("Содержание Cu", "Cu grade"), t("0,29 / 0,36 / 0,47 %", "0.29 / 0.36 / 0.47%"), t("Актогай: 0,32 % в ресурсах, 0,50 % в руде 2023 г.", "Aktogay: 0.32% in resources, 0.50% milled in 2023")),
         (t("Извлечение", "Recovery"), "85–89 %", t("Актогай, сульфидная фабрика: 88 %", "Aktogay sulphide plant: 88%")),
         (t("Индекс Бонда Wi", "Bond work index"), t("11,5 / 13,0 / 15,5 (19,5) кВт·ч/т", "11.5 / 13.0 / 15.5 (19.5) kWh/t"), t("справочник 911 Metallurgist: медная руда 12,7–14", "911 Metallurgist table: copper ore 12.7–14")),
         (t("Свежая вода", "Fresh water"), t("~0,52 м³/т", "~0.52 m³/t"), t("между Бозшаколем (0,43) и Актогаем (0,60), 2024", "between Bozshakol (0.43) and Aktogay (0.60), 2024")),
