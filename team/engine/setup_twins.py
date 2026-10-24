@@ -5,6 +5,11 @@ Create or update the twins of the complex in Ditto (idempotent PUTs).
 Each twin has `_parents` (the hierarchy shown in the OpenEgiz Twins UI) and
 the flows it belongs to: `ore_to`, `water_to`, `power_from` name the twins
 downstream, so the graph of the complex is in Ditto itself.
+
+Each twin also has `type`, one of the OpenEgiz types in the namespace
+kz.limit.type (the Types UI): what the object is, which states it has with
+their units, and what it consists of (`_parents` of a type with a count, so
+the plant type holds two grinding lines and the pit type three faces).
 """
 
 import logging
@@ -13,7 +18,10 @@ import sys
 import time
 import urllib.error
 
+import lp
 import params as P
+import planner
+import simulator
 from platform_io import ditto
 
 log = logging.getLogger("setup")
@@ -22,9 +30,34 @@ log = logging.getLogger("setup")
 # (team/web/img/). The browser loads them, so this is the address it sees.
 WEB_URL = os.environ.get("WEB_URL", "http://localhost:8100").rstrip("/")
 
+# A namespace of their own keeps the types out of the dashboards and the
+# Unity scene, which take every thing matching ^kz.limit: from InfluxDB.
+TYPE_NS = "kz.limit.type"
+TYPES = {   # kind -> name and description of the type
+    "complex": ("Горно-обогатительный комплекс", "Карьер, дробление, фабрика, хвостовое хозяйство, водо- и электроснабжение под общими лимитами"),
+    "control": ("Сценарии «что если»", "Переключатели сценариев и режим планирования: оптимизатор или каждый отдел сам"),
+    "module": ("Модуль-оптимизатор", "Суточный план на 24 часа (линейная программа), узкие места, теневые цены лимитов, рекомендация диспетчеру"),
+    "pit": ("Карьер", "Открытая разработка: забои и экскаваторы, суммарная добыча и мощность"),
+    "face": ("Забой", "Участок одного сорта руды: содержание меди, крепость (Bond Wi), извлечение, добыча"),
+    "shovel": ("Карьерный экскаватор", "Электрический экскаватор забоя: производительность и потребляемая мощность"),
+    "crusher": ("Дробилка крупного дробления", "Конусная дробилка: производительность, загрузка, мощность"),
+    "conveyor": ("Магистральный конвейер", "Транспорт дроблёной руды на склад"),
+    "stockpile": ("Склад дроблёной руды", "Буфер между карьером и фабрикой: запас по трём сортам и заполнение"),
+    "plant": ("Обогатительная фабрика", "Измельчение, флотация, сгущение хвостов и оборотная вода"),
+    "mill": ("Линия измельчения", "МПСИ + шаровая мельница: питание, мощность, загрузка, удельная энергия; ремонт и отключение САОН"),
+    "flotation": ("Флотация", "Извлечение меди и выпуск концентрата"),
+    "thickener": ("Сгуститель хвостов", "Режим (обычный или высокоплотный), содержание твёрдого, вода с хвостами"),
+    "tank": ("Резервуар оборотной воды", "Уровень и расход воды фабрики; блокировка при опустошении"),
+    "water-intake": ("Водозабор свежей воды", "Забор из канала в пределах разрешённого лимита"),
+    "tailings": ("Хвостохранилище", "Объём пруда, запас оборотной воды, потери на испарение и фильтрацию"),
+    "pump-station": ("Насосная оборотной воды", "Возврат осветлённой воды из пруда на фабрику"),
+    "substation": ("Понизительная подстанция", "Нагрузка комплекса и лимит мощности энергосистемы, отключения САОН"),
+}
+
 
 def twin(name, kind, title, parent=None, features=None, **attributes):
-    attrs = {"name": title, "kind": kind, "_isType": False, "image": f"{WEB_URL}/img/{name}.jpg"}
+    attrs = {"name": title, "kind": kind, "type": f"{TYPE_NS}:{kind}", "_isType": False,
+             "image": f"{WEB_URL}/img/{name}.jpg"}
     if parent:
         attrs["_parents"] = P.tid(parent)
     attrs.update(attributes)
@@ -76,16 +109,82 @@ def definitions():
                contracted_mw=P.GRID_LIMIT_MW)
 
 
+def feature_templates():
+    """The states every twin has, with units, as the model publishes them:
+    one step of the simulator and one plan of the optimizer."""
+    sim = simulator.Complex(0)
+    sim.step(2 / 60, None)
+    snap = sim.snapshot()
+    twins = {n: {"features": {k: {"properties": v} for k, v in f.items()}} for n, f in snap.items()}
+    flags = {k: False for k in P.SCENARIOS}
+    state = planner.build_state(twins, flags)
+    plan, base = lp.solve(state), lp.solve(state, baseline=True)
+    ref = lp.solve(planner.build_state(twins, flags, ignore_scenarios=True))
+    if plan["ok"] and base["ok"] and ref["ok"]:
+        snap["planner"] = planner.analyse(state, plan, base, ref, flags, "optimizer")
+    return snap
+
+
+def types(twins):
+    """The OpenEgiz types of the complex, from its twins."""
+    try:
+        published = feature_templates()
+    except Exception as exc:                     # the types are still made, without states
+        log.warning("feature templates not computed: %s", exc)
+        published = {}
+    kind = {name: body["attributes"]["kind"] for name, body in twins}
+    count = {}
+    for name, body in twins:
+        parent = body["attributes"].get("_parents", "").split(":")[-1]
+        if parent:
+            key = (kind[name], kind[parent])
+            count[key] = count.get(key, 0) + 1
+    # every parent kind has one twin, so the count is how many it holds
+    first = {}
+    for name, body in twins:
+        first.setdefault(kind[name], (name, body))
+    for k, (name, body) in first.items():
+        title, description = TYPES[k]
+        feats = published.get(name) or {f: f_["properties"] for f, f_ in body["features"].items()}
+        attrs = {"name": title, "description": description, "_isType": True, "image": body["attributes"]["image"]}
+        parents = {f"{TYPE_NS}:{pk}": n for (ck, pk), n in count.items() if ck == k}
+        if parents:
+            attrs["_parents"] = parents
+        yield f"{TYPE_NS}:{k}", {
+            "policyId": "default:basic_policy",
+            "attributes": attrs,
+            "features": {f: {"properties": {"unit": p["unit"]} if p.get("unit") else {}} for f, p in feats.items()},
+        }
+
+
+def put(thing_id, body):
+    for attempt in range(40):
+        try:
+            status, _ = ditto("PUT", f"/things/{thing_id}", body)
+            log.info("%s  %s", "created" if status == 201 else "updated", thing_id)
+            return True
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            if attempt == 39:
+                log.error("FAILED %s: %s", thing_id, exc)
+                return False
+            time.sleep(3)
+
+
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    for name, body in definitions():
+    twins = list(definitions())
+    for type_id, body in types(twins):
+        if not put(type_id, body):
+            return 1
+    for name, body in twins:
         for attempt in range(40):
             try:
                 if name == "control":
                     # keep the scenario switches a running stand already has
                     try:
                         status, _ = ditto("GET", f"/things/{P.tid(name)}")
-                        ditto("PUT", f"/things/{P.tid(name)}/attributes/image", body["attributes"]["image"])
+                        for a in ("image", "type"):
+                            ditto("PUT", f"/things/{P.tid(name)}/attributes/{a}", body["attributes"][a])
                         log.info("kept     %s", P.tid(name))
                         break
                     except urllib.error.HTTPError as exc:

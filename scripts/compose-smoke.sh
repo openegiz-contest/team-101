@@ -158,6 +158,7 @@ echo "Рудник под лимитом (team/)"
 for twin in complex control planner face-3 mill-1 mill-2 process-water water-intake tailings substation; do
   check_ditto "twin kz.limit:$twin exists" curl -sf -u "ditto:$DITTO_PASSWORD" "$DITTO/api/2/things/kz.limit:$twin"
 done
+check_ditto "type kz.limit.type:mill holds the grinding lines" sh -c "curl -sf -u 'ditto:$DITTO_PASSWORD' '$DITTO/api/2/things/kz.limit.type:mill' | grep -q '\"_isType\":true' && curl -sf -u 'ditto:$DITTO_PASSWORD' '$DITTO/api/2/things/kz.limit:mill-1/attributes/type' | grep -q 'kz.limit.type:mill'"
 check_ditto "planner published an optimal plan" sh -c "curl -sf -u 'ditto:$DITTO_PASSWORD' '$DITTO/api/2/things/kz.limit:planner/features/status/properties/value' | grep -q optimal"
 ok=0
 limit_flux='from(bucket:"default") |> range(start:-2m) |> filter(fn:(r) => r.thingId == "kz.limit:substation" and r._field == "value_load_properties_value") |> count()'
