@@ -24,8 +24,11 @@ public class SkyClock : MonoBehaviour
         else { c = Color.Lerp(Night, Day, (h - 5f) / 2f); k = 0.72f + 0.28f * (h - 5f) / 2f; }
         cam.backgroundColor = c;
         RenderSettings.fogColor = c;
-        sun.intensity = 1.1f * k;
         float a = (h - 6f) / 12f * 180f;
-        sun.transform.rotation = Quaternion.Euler(Mathf.Clamp(Mathf.Sin(a * Mathf.Deg2Rad) * 70f, 15f, 70f), -60f + a * 0.5f, 0f);
+        float elevation = Mathf.Clamp(Mathf.Sin(a * Mathf.Deg2Rad) * 70f, 15f, 70f);
+        sun.transform.rotation = Quaternion.Euler(elevation, -60f + a * 0.5f, 0f);
+        // a high sun on the light ground would wash it out to white: above 30° the
+        // light the ground gets from the sun stays the same
+        sun.intensity = 0.5f * k / Mathf.Max(Mathf.Sin(elevation * Mathf.Deg2Rad), 0.5f);
     }
 }

@@ -222,7 +222,7 @@ class Complex:
         day_before = int(self.hour // 24)
         self.hour += dt_h
         if int(self.hour // 24) != day_before:
-            self.event(f"Сутки закрыты: {self.today['copper']:.1f} т меди, {self.today['ore'] / 1000:.1f} тыс. т руды")
+            self.event(f"Сутки {day_before + 1} закрыты: {self.today['copper']:.1f} т меди, {self.today['ore'] / 1000:.1f} тыс. т руды")
             self.today = {k: 0 if isinstance(v, int) else 0.0 for k, v in self.today.items()}
         self.today["copper"] += copper * dt_h
         self.today["ore"] += total_feed * dt_h

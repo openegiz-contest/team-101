@@ -173,10 +173,15 @@ def analyse(state, plan, base, ref, flags, mode):
                   f"из {num(state['fresh_m3h'][0])}.")
     if peak_hours:
         low = min(sched["ore"][t] for t in peak_hours)
+        off_peak = [sched["ore"][t] for t in range(len(hours)) if t not in peak_hours]
         stock_peak_end = sched["stock"][peak_hours[-1]]
-        advice.append(f"Пик {hour_ranges([hours[t] for t in peak_hours], hours[0])}: загрузка фабрики снижается до "
-                      f"{num(low)} т/ч, карьер продолжает работу на склад "
-                      f"(на складе к концу пика {num(stock_peak_end / 1000, 1)} тыс. т).")
+        peak = hour_ranges([hours[t] for t in peak_hours], hours[0])
+        if off_peak and low < max(off_peak) - 1:
+            advice.append(f"Пик {peak}: загрузка фабрики снижается до "
+                          f"{num(low)} т/ч, карьер продолжает работу на склад "
+                          f"(на складе к концу пика {num(stock_peak_end / 1000, 1)} тыс. т).")
+        else:               # e.g. one mill line: the reduced limit still covers it
+            advice.append(f"Пик {peak}: лимита хватает, загрузка фабрики не снижается ({num(low)} т/ч).")
     advice.append(f"План на 24 ч: {num(plan['copper_day'], 1)} т меди. Пропорциональное сокращение по отделам: "
                   f"{num(base['copper_day'], 1)} т. Выигрыш плана: {'+' if gain >= 0 else ''}{num(gain, 1)} т "
                   f"({'+' if gain >= 0 else ''}{num(gain_pct, 1)} %).")

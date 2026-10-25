@@ -1,10 +1,6 @@
 # SUBMISSION
 
-<!-- Fill in every section. The AI Jury studies this file together with the code, the Build Report, the presentation and the Stand's interface. Accepted languages: English, Kazakh, Russian. These hint comments may be deleted. -->
-
 ## Concept
-
-<!-- Written by the Team before the code: your own choice, a few sentences per answer. Everything else in the Submission follows from it. -->
 
 **«Рудник под лимитом»** — двойник горнорудного комплекса, который помогает планировать работу при дефиците воды и электроэнергии.
 
@@ -19,8 +15,6 @@
 **Real or fictional:** Объект вымышленный, похож на крупные медные комплексы Казахстана в засушливых регионах. Откуда взяты числа — в разделе «Data and Assumptions».
 
 ## Team
-
-<!-- GitHub usernames of the Participants. Other personal data are not required: the repository becomes public after the Freeze (Rules, section 15). -->
 
 | GitHub | Зона ответственности |
 |---|---|

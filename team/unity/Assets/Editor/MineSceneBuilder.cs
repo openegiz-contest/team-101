@@ -158,7 +158,7 @@ public static class MineSceneBuilder
         var sunGo = new GameObject("Sun");
         var sun = sunGo.AddComponent<Light>();
         sun.type = LightType.Directional;
-        sun.color = C(0xfff1dc); sun.intensity = 1.1f;
+        sun.color = C(0xfff1dc); sun.intensity = 0.65f;           // SkyClock sets it from the model time
         sun.shadows = LightShadows.Hard;
         sunGo.transform.rotation = Quaternion.Euler(50, -30, 0);
         var sky = root.gameObject.AddComponent<SkyClock>();
