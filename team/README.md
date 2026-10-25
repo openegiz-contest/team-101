@@ -21,6 +21,9 @@
 | [engine/lp.py](engine/lp.py) | Линейная программа суточного плана (SciPy/HiGHS), её вариант «по отделам», теневые цены |
 | [engine/planner.py](engine/planner.py) | Сервис модуля: собирает состояние из Ditto, решает, формирует рекомендации и публикует их в двойник `planner` |
 | [engine/platform_io.py](engine/platform_io.py) | MQTT и Ditto HTTP |
-| [web/](web/) | 3D-страница (`index.html`, `app.js`, `style.css`), Three.js r160 в `vendor/`, конфигурация nginx-прокси |
+| [engine/evaluate.py](engine/evaluate.py) | `make evaluate`: сутки модели на каждый сценарий, план оптимизатора против «каждый отдел сам» — таблица из SUBMISSION.md |
+| [web/](web/) | 3D-страница (`index.html`, `app.js`, `style.css`), Three.js r160 в `vendor/`, конфигурация nginx-прокси; готовые модели Kenney и Poly Pizza — в [web/models/](web/models/), картинки двойников для OpenEgiz → Twins — в [web/img/](web/img/) |
+| [unity/](unity/) | Та же сцена для Unity-панели Grafana: проект Unity 6, сцена строится кодом; готовая сборка — `build/MineUnderLimits.*` в корне |
+| [presentation/](presentation/) | Исходник презентации: `build.py` собирает `presentation.pdf` и `presentation.en.pdf` в корне |
 
 Параметры запуска (в `deploy/compose/.env` или окружении): `SIM_SPEEDUP` (по умолчанию 60 — минута реального времени = час модели), `SIM_START_HOUR` (16.5), `LIMIT_WEB_PORT` (8100).
